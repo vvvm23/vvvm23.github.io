@@ -1,0 +1,61 @@
+baseURL: https://afmck.in
+languageCode: en
+title: "Alex McKinney"
+theme: "PaperMod"
+paginate: 5
+
+enableRobotsTXT: true
+enableEmoji: true
+
+languages:
+  en:
+    languageName: "English"
+    weight: 1
+    taxonomies:
+      category: categories
+      tag: tags
+      series: series
+    menu:
+      main:
+        - name: About
+          url: about
+          weight: 1
+        - name: Posts
+          url: posts
+          weight: 5
+        - name: CV
+          url: cv.pdf
+          weight: 99
+
+params:
+  #author: "Alex McKinney"
+
+  defaultTheme: auto
+
+  ShowShareButtons: false
+  ShowReadingTime: false
+  ShowToc: true
+
+  homeInfoParams:
+    Title: "🤔 Welcome to Alex's Website!"
+    Content: >
+      Greetings! I am Alex, and you are reading my website ～ 
+
+      - I am an artificial intelligence engineer and general computer tinkerer.
+
+      - I'll be documenting my learning notes here, as well as anything else that catches my fancy.
+
+      - You can read more about me [here](about)!
+
+  socialIcons:
+    - name: "Github"
+      url: "https://github.com/vvvm23"
+    - name: "Twitter"
+      url: "https://twitter.com/alexfmckinney"
+    - name: "Scholar"
+      url: "https://scholar.google.com/citations?user=rhDSi6AAAAAJ"
+    - name: "Email"
+      url: "mailto:alex.f.mckinney@gmail.com"
+
+  cover:
+    linkFullImages: true
