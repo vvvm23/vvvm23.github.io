@@ -41,8 +41,10 @@ concepts.
 
 It's helpful to begin with the single device case. One host (a regular PC with
 a CPU and memory), one accelerator we want to run our model on, suppose a GPU,
-which has its own processing units and memory. If you are a deep learning
-practioner you should be familiar with this scenario.
+which has its own processing units and memory. During execution, we load
+parameters and data onto the device, and create intermediate data on-device
+such as activations and gradients. If you are a deep learning practioner you
+should be familiar with this scenario.
 
 You will also be familiar with this other scenario:
 ```
@@ -73,7 +75,7 @@ And some solutions typically consist of the following:
 - CPU offload :right_arrow: only load tensors onto device when needed,
   otherwise store in host memory.
 
-.. among others!
+..among others!
 
 These solutions help a lot in most workflows and can allow for training much
 larger models on a single device than you would expect (see [this DeepSpeed
@@ -85,12 +87,44 @@ In such cases, please read on.
 
 ### Data Parallelism
 
-foobar
+Arguably one of this simplest forms of parallelism, data parallelism simply
+takes all the devices you have, copies model and optimiser parameters and code
+onto all of them, then feeds different data to each device. Gradients are then
+synchronised between devices, optimisers step, and parameters are finally
+updated. In essence, we use more devices to chew through the dataset faster,
+thus obtaining a speedup. It also enables larger (global) batch sizes without
+changing the number of gradient accumulation steps (and hence losing speed).
+
+Note though, that the model and optimiser parameters are replicated on all
+devices (or replicas). Hence, in order for this parallelism to work, we need to
+be able to fit the entire model with a micro-batch size of at least one on a
+single replica.
+
+Data parallelism won't directly help fit larger models, but can help pump up
+the batch size that you likely had to reduce to squeeze the model in
+originally. My first encounter with this was during my master's dissertation,
+training a VQ-GAN model, where I could only train on a single device with a
+micro-batch size of one, but could obtain a global batch size of 16 with 4
+devices and 4 gradient accumulation steps. 
+
+Data parallelism also is pretty communication light, as we only need to
+all-reduce the gradients whenever we update the optimiser, which could be quite
+infrequent depending on the number of gradient accumulation steps. This also
+reduces the need for high-speed interconnect between replicas, as communication
+is infrequent.
+
+To use data parallelism in your code see [this post for PyTorch fans]() and
+[this post for Jax](). I can't really comment on the best Tensorflow source,
+but it surely is implemented.
 
 ### Tensor Parallelism
 
 foobar
 
 ### Pipeline Parallelism
+
+foobar
+
+### All together now..
 
 foobar
