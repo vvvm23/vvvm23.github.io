@@ -4,6 +4,8 @@ date: 2022-11-12T10:11:43Z
 draft: false
 ---
 
+### Introduction
+
 It has been just over two months since I started my first (quote-on-quote) real
 job as a fully-fledged graduate. This has taken the form of being an AI
 Engineer at Graphcore, a UK-based AI accelerator startup. In quite a short
@@ -34,3 +36,61 @@ topic. Luckily, the concepts are agnostic in the type of compute device used –
 you could even treat everything as desktop CPUs, or a TI-85 graphing calculator
 – so this will not be IPU specific nor even framework specific, just high-level
 concepts.
+
+### Working with a Single Device
+
+It's helpful to begin with the single device case. One host (a regular PC with
+a CPU and memory), one accelerator we want to run our model on, suppose a GPU,
+which has its own processing units and memory. If you are a deep learning
+practioner you should be familiar with this scenario.
+
+You will also be familiar with this other scenario:
+```
+CUDA OUT OF MEMORY
+```
+For which you probably have a few solutions you immediately reach for (no, not
+a bank card). On-device memory is typically used for the following things:
+- Storing model parameters.
+- Storing activations.
+- Storing gradients.
+- Storing optimiser states.
+- Storing code.
+
+> Having to store gradients and optimiser states on-device is one reason why
+> training models uses more memory than just running inference. This is
+> particularly true for more advanced (read: memory-hungry) optimisers like
+> Adam.
+
+And some solutions typically consist of the following:
+- Switch to a lower floating point precision :right_arrow: less bits used per
+  tensor.
+- Decrease micro-batch size and compensate with gradient accumulation
+  :right_arrow: reduces size of activations and gradients.
+- Turn on "no gradient" or "inference mode" :right_arrow: only store current
+  activations, no gradients stored.
+- Sacrifice extra compute for memory savings (ex: recomputation of activations,
+  attention serialisation)
+- CPU offload :right_arrow: only load tensors onto device when needed,
+  otherwise store in host memory.
+
+.. among others!
+
+These solutions help a lot in most workflows and can allow for training much
+larger models on a single device than you would expect (see [this DeepSpeed
+blog]()). However, for one reason or another, this is sometimes just not
+practical, or you have money burning a hole in your pocket and fancy renting a
+humungous 8xA100 node. 
+
+In such cases, please read on.
+
+### Data Parallelism
+
+foobar
+
+### Tensor Parallelism
+
+foobar
+
+### Pipeline Parallelism
+
+foobar
