@@ -117,14 +117,63 @@ To use data parallelism in your code see [this post for PyTorch fans]() and
 [this post for Jax](). I can't really comment on the best Tensorflow source,
 but it surely is implemented.
 
-### Tensor Parallelism
-
-foobar
-
 ### Pipeline Parallelism
 
-foobar
+Pipeline Parallelism is used when the entire model is too large to fit on a
+single replica.
+
+### Tensor Parallelism
+
+What about if a single *layer* is too big to fit on a single replica? Say for
+example, a particularly large MLP expansion, or an expensive self-attention
+layer.
+
 
 ### All together now..
+
+A keen eyed reader may have noticed that these parallelism strategies should
+not be incompatible with one another – perhaps they might even use the term
+*orthogonal*. Indeed, when we start reaching very large model sizes, or we have
+a lot of compute to throw around, we start arranging replicas into hierarchies
+and groups.
+
+![Diagram from Microsoft Research's DeepSpeed, showing how different times of parallelism can coexist and complement one another](img/3d-parallelism.png)
+
+Take for example, a system with a data parallel factor of `dp`. Each data
+parallel instance will contain an exact copy of the model – simply sending
+different batches to each data parallel instance. If we employ pipeline
+parallelism with `pp` pipeline stages, and each data parallel instance contains
+an exact copy, then each data parallel instance must also contain `pp` pipeline
+stages, giving `pp * dp` replicas total.
+
+Adding tensor parallelism to the mix, splitting tensors among `tp` replicas,
+each pipeline stage will use `tp` replicas. Naturally, this gives a total
+number of replicas of `pp * dp * tp`. This gives a very natural hierarchy of
+data parallel at the very top, down to tensor parallelism at the lowest. This
+also translates near perfectly to a typical compute cluster.
+
+Recall that data parallelism communications (the gradient all reduce) occur
+much less frequently than tensor parallelism communication. Furthermore, larger
+clusters typically consist of multiple nodes, where communication between
+devices on a single node is much faster than communication between nodes. It
+therefore makes sense then to group tensor parallel replicas that need to
+communicate together on a single node, and place ones that do not across nodes.
+In other words, prioritise placing tensor parallel groups on high-bandwidth
+interconnect over data parallel groups. For example, using IPUs, certain IPUs
+have more links between them and so give a higher speed interconnect. Moreover,
+certain IPUs exist together on the same motherboard, whereas others only share
+the same host server, or perhaps even use different host servers entirely.
+
+### Conclusion
+
+foobar
+
+---
+
+#### Further Reading
+
+foobar
+
+#### References
 
 foobar
