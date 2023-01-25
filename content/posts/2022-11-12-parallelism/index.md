@@ -159,10 +159,12 @@ devices on a single node is much faster than communication between nodes. It
 therefore makes sense then to group tensor parallel replicas that need to
 communicate together on a single node, and place ones that do not across nodes.
 In other words, prioritise placing tensor parallel groups on high-bandwidth
-interconnect over data parallel groups. For example, using IPUs, certain IPUs
-have more links between them and so give a higher speed interconnect. Moreover,
-certain IPUs exist together on the same motherboard, whereas others only share
-the same host server, or perhaps even use different host servers entirely.
+interconnect over data parallel groups.
+
+For example, using IPUs, certain IPUs have more links between them and so give
+a higher speed interconnect. Moreover, certain IPUs exist together on the same
+motherboard, whereas others only share the same host server, or perhaps even
+use different host servers entirely.
 
 ### Conclusion
 
