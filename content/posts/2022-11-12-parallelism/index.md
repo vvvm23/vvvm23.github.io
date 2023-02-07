@@ -114,8 +114,8 @@ reduces the need for high-speed interconnect between replicas, as communication
 is infrequent.
 
 To use data parallelism in your code see [this post for PyTorch fans]() and
-[this post for Jax](). I can't really comment on the best Tensorflow source,
-but it surely is implemented.
+[this post for Jax](). I am not a Tensorflow expert, but happy to add links here
+if anyone knows of any.
 
 ### Pipeline Parallelism
 
@@ -125,9 +125,34 @@ single replica.
 ### Tensor Parallelism
 
 What about if a single *layer* is too big to fit on a single replica? Say for
-example, a particularly large MLP expansion, or an expensive self-attention
-layer.
+example, a particularly large MLP expansion, expensive self-attention layer, or
+a large embedding layer. In such cases, the parameters of a layer can be split
+across multiple devices. Partial results are then computed on each device before materialising the final result by communicating between the devices.
 
+Take, for example, the MLP block in a standard transformer model that projects a vector $x$ to and from a space of dimension $d$ and $4d$:
+
+$$h = W_2 \cdot f(W_1 \cdot x + b) + b_2 $$
+where $f$ is a nonlinear activation function, $W_*$ are the weight matrices, and
+$b_*$ are the bias vectors.
+
+To turn this into a tensor parallel layer, do the following:
+- Split $W_1$ **row**-wise into `n` pieces, sending one to each of `n` replicas.
+- Split $W_2$ **column**-wise into `n` pieces, sending one to each of `n` replicas.
+- Split $b_1$ into `n` pieces, as above.
+
+Then, given an input $x$, do on each replica `i`:
+- Compute $f(W_1^{(i)} \cdot x + b_1^{(i)})$, resulting in a vector $z_i$ of size $4d/n$.
+- Compute $W_2^{(i)} \cdot z_i$, resulting in $\hat{h_i}$ of size $d$
+
+This, naturally, does not give the same result. The next part resolves this:
+- Communicate between replicas to compute $\sum^n_{i=1} \hat{h_i} $
+- On all replicas add $b_2$, to get the final result $h$ on all replicas.
+
+Why is this the case? 
+<!-- TODO: work it out to make it explicit. -->
+
+<!-- TODO: embedding or attention layer example -->
+<!-- TODO: maybe 2dtp but not sure if allowed -->
 
 ### All together now..
 
@@ -161,10 +186,13 @@ communicate together on a single node, and place ones that do not across nodes.
 In other words, prioritise placing tensor parallel groups on high-bandwidth
 interconnect over data parallel groups.
 
-For example, using IPUs, certain IPUs have more links between them and so give
-a higher speed interconnect. Moreover, certain IPUs exist together on the same
-motherboard, whereas others only share the same host server, or perhaps even
-use different host servers entirely.
+For example, using IPUs, certain IPUs have more links between them and so give a
+higher speed interconnect. Moreover, certain IPUs exist together on the same
+motherboard, whereas others only share the same host server, or perhaps even use
+different host servers entirely. For GPUs, perhaps certain GPUs are connected
+together using NVLink, and others over ethernet between different servers -
+perhaps even [over the internet](https://github.com/bigscience-workshop/petals),
+swarm style.
 
 ### Conclusion
 
