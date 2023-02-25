@@ -120,7 +120,65 @@ if anyone knows of any.
 ### Pipeline Parallelism
 
 Pipeline Parallelism is used when the entire model is too large to fit on a
-single replica.
+single device. The model is split into stages and each stage executed on a
+different device, passing activations between neighbouring stages when a
+boundary is reached during execution.
+
+For inference, this is extremely good for improving total throughput of the
+system as multiple batches can be processed in parallel, with communication only
+happening at stage boundaries:
+
+![Inference pipeline](img/pipeline-inference.png)
+> Shamelessly taken from [a tutorial from my job.](https://docs.graphcore.ai/projects/tf-model-parallelism/en/latest/pipelining.html) Same goes for all images in this section on pipelining.
+
+There is a noticeable **gap** at the start of the above inference pipeline. This is known as the **ramp-up** phase where device utilisation cannot be at 100%. It is clear, that stage 3 cannot begin executing batch 1 until stage 1 and 2 are both done with batch 1. However, in this scheme, once the final stage `N` has received the first batch, we reach the **main phase** and reach maximum utilisation. Once the first stage processes the final batch, we reach the **ramp-down** stage, as their is simply no more data left to execute on.
+
+It should be noted that for best utilisation, the time to execute each stage
+should be as balanced as possible. This is because if one stage finishes early,
+it may have to wait for the subsequent stage to be ready before passing on its
+activations and executing its next batch. This is easy in relatively homogeneous models like transformers, where most layers are typically the same size, but difficult in other models such as Resnets or UNets.
+
+How does this extend to training?
+
+It makes sense for each stage $t$ to also handle its own backwards pass $t$, so
+we don't need to copy activations or parameters to another device. However, one
+key consideration is that we cannot handle the backwards for a stage $t$,
+without having the results for backwards $t+1, \dots, N$ and the forwards for
+$t-1, \dots, 1$.
+
+Let's begin with the simplest scheme that meets these conditions:
+![Sequential pipeline](img/pipeline-sequential.png)
+> Yes, the second set for forward should probably say "B2"
+
+In this scheme, only one batch is in play at a time, leaving all stages but one
+idle. At the final stage, we turn around and begin the backwards pass, again
+leaving all but one stage idle. Once a full batch is computed (in other words,
+after the ramp-down), a weight update is performed. This means the utilisation
+is always going to be (at most) $1/N$ of full utilisation. Clearly extremely
+inefficient! 
+
+> However, good for debugging purpose!
+
+We can do better with a **grouped pipeline:**
+![Grouped pipeline](img/pipeline-grouped.png)
+
+The ramp-up phase almost consists of two "sub-ramp-ups", the first being the same as the inference ramp-up, followed by a ramp-up of the backwards passes which alternate with main-phase forward passes. Once the main-stage is reached, we alternate between forward and backwards passes on all stages.
+
+We can alternate as once a stage $t$ processes the backwards of batch $b$, it can discard activations and accumulate gradients. It is then ready to process the next forward pass for batch $b+1$. Like before, a weight update occurs after a ramp-down phase.
+
+Another approach is to interleave the forwards and backwards passes:
+![Interleaved pipeline](img/pipeline-interleaved.png)
+
+So at any given point, half the stages are executing a forward pass, and half the backwards pass. Because of this, the ramp-up and ramp-down phases are much shorter, resulting in a quicker time to maximum utilisation.
+
+The last two schemes have different advantages and disadvantages:
+- At any given time, the grouped scheme executes twice as much mini-batches as the interleaved scheme, meaning more memory is required to store activations
+- Grouped schemes executes all forward and backwards together, meaning communication is less frequent. Interleaved executes separately, resulting in more communication and also some idle time when forward passes wait for backward passes – which typically take longer than forward passes. Hence, grouped schemes are typically faster than interleaved.
+- Interleaved ramp-up and ramp-down time is about twice as fast as grouped, meaning it is quicker to reach full utilisation.
+
+Pipeline parallleism uses much more communication than data parallel, however less than tensor parallelism, which I will discuss in the next section. The amount of communication is not too bad as it is limited to boundaries between stages, meaning regardless of number of replicas, each one will send once, and receive once. The communication can be done in parallel between all replicas.
+
+<!-- TODO: add some links to code-->
 
 ### Tensor Parallelism
 
@@ -148,11 +206,40 @@ This, naturally, does not give the same result. The next part resolves this:
 - Communicate between replicas to compute $\sum^n_{i=1} \hat{h_i} $
 - On all replicas add $b_2$, to get the final result $h$ on all replicas.
 
-Why is this the case? 
-<!-- TODO: work it out to make it explicit. -->
+A nice exercise is to write out mathematically the operations happening here,
+and see that we do indeed arrive at the same result. However, I will save myself
+~~you~~ the pain here.
 
 <!-- TODO: embedding or attention layer example -->
-<!-- TODO: maybe 2dtp but not sure if allowed -->
+Another example is an embedding layer in a transformer. We can split the
+embedding matrix along the vocabulary dimension, resulting in a shards of shape
+$V/n \times d$. All replicas receive the same input tokens and compute the
+embedding. However, if any given token falls outside a given replica's valid
+range, a zero tensor is instead returned. Then, an all-reduce will rematerialise
+the final result, as only one replica (for any given element in the input
+sequence) will have a non-zero tensor.
+
+> It should be noted that a distributed all-gather could also be used!
+
+Other examples include splitting attention heads, convolution channels or even
+the spatial dimensions themselves other replicas.
+
+Regardless of the context tensor parallelism is applied, it should be noted that
+communication between replicas in the same tensor parallel group occur much more
+frequently than in data parallel groups, or between pipeline stages. This means
+that time spent communicating compared to actually computing a result increases.
+This also means that replicas in the same tensor parallel group should be placed
+on higher bandwidth interconnect, if possible.  
+
+Depending on the model size tensor parallelism can be totally unavoidable, but
+should be avoided if possible! Of course, exceptions are also possible. One case
+is where (suppose) you could not use pipeline parallelism, so in order to fit
+the whole model onto the available devices, you use tensor parallelism
+throughout the model, despite no single layer causing an out of memory. This is
+somewhat orthogonal to pipeline parallelism: splitting through the model rather
+than across.
+
+<!-- TODO: add some links to code-->
 
 ### All together now..
 
