@@ -36,7 +36,7 @@ have a ways to go. For now though, I will share what I have learned on this
 topic. Luckily, the concepts are agnostic in the type of compute device used –
 you could even treat everything as desktop CPUs, or a graphing calculator
 – so this will not be IPU specific nor even framework specific, just high-level
-concepts.
+concepts. This also means I will include code examples, but I will link to tutorials and frameworks that implement the concepts I discuss at the end of each section.
 
 ### Working with a Single Device
 
@@ -185,7 +185,7 @@ The last two schemes have different advantages and disadvantages:
 - Grouped schemes executes all forward and backwards together, meaning communication is less frequent. Interleaved executes separately, resulting in more communication and also some idle time when forward passes wait for backward passes – which typically take longer than forward passes. Hence, grouped schemes are typically faster than interleaved.
 - Interleaved ramp-up and ramp-down time is about twice as fast as grouped, meaning it is quicker to reach full utilisation.
 
-Pipeline parallleism uses much more communication than data parallel, however less than tensor parallelism, which I will discuss in the next section. The amount of communication is not too bad as it is limited to boundaries between stages, meaning regardless of number of replicas, each one will send once, and receive once. The communication can be done in parallel between all replicas.
+Pipeline parallelism uses much more communication than data parallel, however less than tensor parallelism, which I will discuss in the next section. The amount of communication is not too bad as it is limited to boundaries between stages, meaning regardless of number of replicas, each one will send once, and receive once. The communication can be done in parallel between all replicas.
 
 PyTorch has native support for pipelining
 [here](https://pytorch.org/docs/stable/pipeline.html) which uses the [GPipe
@@ -233,6 +233,9 @@ This, naturally, does not give the same result. The next part resolves this:
 A nice exercise is to write out mathematically the operations happening here,
 and see that we do indeed arrive at the same result. However, I will save myself
 ~~you~~ the pain here.
+
+![img/tensor-parallel-mlp.png]
+> A diagram of a tensor parallel MLP from the Megatron paper.
 
 Another example is an embedding layer in a transformer. We can split the
 embedding matrix along the vocabulary dimension, resulting in a shards of shape
@@ -314,14 +317,25 @@ a framework built around Jax [here](https://github.com/alpa-projects/alpa).
 
 ### Conclusion
 
-foobar
+Unless something tremendously dramatic happens in deep learning research, very
+large models are here to stay. Therefore, at least being aware of these
+techniques will become a fact of life for most AI engineers. Even if the
+interfaces become very clean in the future (so engineers can just
+fire-and-forget) there will be still a benefit in knowing how things word under
+the hood, just like the benefits gained from studying anything we take for
+granted now.
 
----
+I am still a beginner in this topic and had never deeply explored before
+starting my job. Luckily for me I found it very interesting, albeit a little
+annoying to work with versus working with a single device. There is also a bit
+of a cognitive shift required to move from a serial execution world, where most
+people start from, to a massively parallel world, where we are going. However,
+the difficulty is worth it to better understand how large behemoths like GPT-3
+are orchestrated. 
 
-#### Further Reading
+In the future and as I gain more experience, I would like to dive into further
+detail about specific methods mentioned here, and those yet-to-come. However,
+for now and given my current experience level, I simply hope this post can help
+you gain a high-level understanding of the methods currently available to us in
+deep learning system parallelism.
 
-foobar
-
-#### References
-
-foobar
