@@ -6,6 +6,8 @@ draft: false
 
 ### Introduction
 
+![](img/header.jpg)
+
 It has been nearly half a year since I started my first (quote-on-quote) real
 job as a fully-fledged graduate. This has taken the form of being an AI
 Engineer at Graphcore, a UK-based AI accelerator startup. In quite a short
