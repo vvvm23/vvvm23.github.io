@@ -6,7 +6,7 @@ draft: false
 
 ### Introduction
 
-It has been just over two months since I started my first (quote-on-quote) real
+It has been nearly half a year since I started my first (quote-on-quote) real
 job as a fully-fledged graduate. This has taken the form of being an AI
 Engineer at Graphcore, a UK-based AI accelerator startup. In quite a short
 amount of time, I have learned a great great deal and I am quite grateful for
@@ -17,9 +17,10 @@ Chief among what I have learned is a wide array of parallelism strategies. If
 you are at least somewhat familiar with Graphcore's **IPU** accelerators, you
 will know why. But for the uninitiated, the amount of on-chip memory that can
 be directly accessed without hassle on an IPU, is considerably smaller than the
-GPUs of today. Though the IPU also has a number of advantages versus a GPU, the
-reduced size does mean that parallel execution strategies are a more frequent
-occurrence. 
+GPUs of today. Luckily, it has a substantial amount of secondary DRAM memory - 
+also on IPU - so offloading is faster than it would be to CPU. Nevertheless,
+though the IPU also has a number of advantages versus a GPU, the reduced size
+does mean that parallel execution strategies are a more frequent occurrence. 
 
 Though that doesn't sound great, if you stop to consider the fast growing model
 sizes in the artificial intelligence research community, you will maybe notice
@@ -33,7 +34,7 @@ aligning myself very quickly on the large model side of things. Conceptually,
 parallelism in deep learning is not tricky, but with implementation I still
 have a ways to go. For now though, I will share what I have learned on this
 topic. Luckily, the concepts are agnostic in the type of compute device used –
-you could even treat everything as desktop CPUs, or a TI-85 graphing calculator
+you could even treat everything as desktop CPUs, or a graphing calculator
 – so this will not be IPU specific nor even framework specific, just high-level
 concepts.
 
@@ -78,10 +79,11 @@ And some solutions typically consist of the following:
 ..among others!
 
 These solutions help a lot in most workflows and can allow for training much
-larger models on a single device than you would expect (see [this DeepSpeed
-blog]()). However, for one reason or another, this is sometimes just not
-practical, or you have money burning a hole in your pocket and fancy renting a
-humungous 8xA100 node. 
+larger models on a single device than you would expect (see [this Microsoft
+blog](https://www.microsoft.com/en-us/research/blog/deepspeed-extreme-scale-model-training-for-everyone/)).
+However, for one reason or another, this is sometimes just not practical, or
+you have money burning a hole in your pocket and fancy renting a humungous
+8xA100 node. 
 
 In such cases, please read on.
 
@@ -113,9 +115,16 @@ infrequent depending on the number of gradient accumulation steps. This also
 reduces the need for high-speed interconnect between replicas, as communication
 is infrequent.
 
-To use data parallelism in your code see [this post for PyTorch fans]() and
-[this post for Jax](). I am not a Tensorflow expert, but happy to add links here
-if anyone knows of any.
+To use data parallelism in your code see [this post for PyTorch
+fans](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) and [this
+post for Jax](https://www.mishalaskin.com/posts/data_parallel). I also like
+[this post by Kevin
+Kai-chuang](https://yangkky.github.io/2019/07/08/distributed-pytorch-tutorial.html)
+for PyTorch. However, by far the easiest way to add data parallelism to your
+code in PyTorch is to use [Huggingface
+Accelerate](https://github.com/huggingface/accelerate) which near-perfectly
+abstracts away data parallelism, and integrates with powerful libraries like
+Deepspeed, right out of the box.
 
 ### Pipeline Parallelism
 
@@ -178,7 +187,22 @@ The last two schemes have different advantages and disadvantages:
 
 Pipeline parallleism uses much more communication than data parallel, however less than tensor parallelism, which I will discuss in the next section. The amount of communication is not too bad as it is limited to boundaries between stages, meaning regardless of number of replicas, each one will send once, and receive once. The communication can be done in parallel between all replicas.
 
-<!-- TODO: add some links to code-->
+PyTorch has native support for pipelining
+[here](https://pytorch.org/docs/stable/pipeline.html) which uses the [GPipe
+algorithm](https://arxiv.org/abs/1811.06965). This was used to train larger
+transformer models in [this
+tutorial](https://pytorch.org/tutorials/intermediate/pipeline_tutorial.html).
+Deepspeed provides more advanced pipeline parallelism, which is explained [in
+this tutorial](https://www.deepspeed.ai/tutorials/pipeline/). 
+
+Jax, meanwhile, has no native support for pipeline parallelism, but frameworks
+around Jax such as Alpa do support it, such as in [this
+tutorial](https://alpa.ai/tutorials/pipeshard_parallelism.html). Lack of native
+support in Jax likely comes from its emphasis on TPUs, which have high
+bandwidth interconnect between all replicas in a TPU pod (versus GPUs which
+have fast interconnect only within a host). This means it is much more
+preferable to simply use data and tensor parallelism (more on the latter later) 
+to eliminate pipeline bubbles.
 
 ### Tensor Parallelism
 
@@ -210,7 +234,6 @@ A nice exercise is to write out mathematically the operations happening here,
 and see that we do indeed arrive at the same result. However, I will save myself
 ~~you~~ the pain here.
 
-<!-- TODO: embedding or attention layer example -->
 Another example is an embedding layer in a transformer. We can split the
 embedding matrix along the vocabulary dimension, resulting in a shards of shape
 $V/n \times d$. All replicas receive the same input tokens and compute the
@@ -219,17 +242,15 @@ range, a zero tensor is instead returned. Then, an all-reduce will rematerialise
 the final result, as only one replica (for any given element in the input
 sequence) will have a non-zero tensor.
 
-> It should be noted that a distributed all-gather could also be used!
-
 Other examples include splitting attention heads, convolution channels or even
-the spatial dimensions themselves other replicas.
+the spatial dimensions themselves, between the replicas.
 
 Regardless of the context tensor parallelism is applied, it should be noted that
 communication between replicas in the same tensor parallel group occur much more
 frequently than in data parallel groups, or between pipeline stages. This means
 that time spent communicating compared to actually computing a result increases.
 This also means that replicas in the same tensor parallel group should be placed
-on higher bandwidth interconnect, if possible.  
+on higher bandwidth interconnect, if possible.
 
 Depending on the model size tensor parallelism can be totally unavoidable, but
 should be avoided if possible! Of course, exceptions are also possible. One case
@@ -240,6 +261,7 @@ somewhat orthogonal to pipeline parallelism: splitting through the model rather
 than across.
 
 <!-- TODO: add some links to code-->
+Support for tensor parallelism in PyTorch is **experimental** (see this RFC)[https://github.com/pytorch/pytorch/issues/88838] but is supported in Deepspeed as "tensor-slicing model-parallelism". Tensor parallelism can be achieved in Jax using [`jax.pjit`](https://irhum.github.io/blog/pjit/).
 
 ### All together now..
 
@@ -280,6 +302,15 @@ different host servers entirely. For GPUs, perhaps certain GPUs are connected
 together using NVLink, and others over ethernet between different servers -
 perhaps even [over the internet](https://github.com/bigscience-workshop/petals),
 swarm style.
+
+Though these parallelism methods are orthogonal to one another, it is still
+a challenging task to combine them. Moreover, though a certain scheme may
+indeed make the model *fit*, it may be terrible inefficient. The problem of
+taking a model and cluster configuration as input and producing a good grouping
+of replicas to maximise performance is an art in and of itself. It remains
+still an active area of research. One such method is
+[Alpa](https://arxiv.org/abs/2201.12023) by Google research which has
+a framework built around Jax [here](https://github.com/alpa-projects/alpa).
 
 ### Conclusion
 
