@@ -8,7 +8,7 @@ draft: false
 
 <!-- See how this looks online -->
 ![](img/header.jpg)
-> Witty header here..
+> *Royal York Crescent, Bristol.*
 
 It has been nearly half a year since I started my first real job as a
 fully-fledged graduate. This has taken the form of being an AI Engineer at
