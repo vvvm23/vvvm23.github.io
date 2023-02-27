@@ -1,10 +1,8 @@
 ---
 title: "A Brief Overview of Parallelism Strategies in Deep Learning"
-date: 2023-02-27T09:00:00Z
+date: 2023-02-27T09:00:00+00:00
 draft: false
 ---
-
-# A Brief Overview of Parallelism Strategies in Deep Learning
 
 <!-- See how this looks online -->
 ![](img/header.jpg)
