@@ -2,6 +2,7 @@
 title: "A Brief Overview of Parallelism Strategies in Deep Learning"
 date: 2023-02-26T09:00:00+00:00
 draft: false
+math: true
 ---
 
 <!-- See how this looks online -->
