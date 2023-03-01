@@ -57,7 +57,11 @@ You will also be familiar with this other scenario:
 <!-- TODO: add real OOM error -->
 ```
 > x = torch.empty(int(1e12), device=device)
-OutOfMemoryError: CUDA out of memory. Tried to allocate 3725.29 GiB (GPU 0; 23.69 GiB total capacity; 3.73 GiB already allocated; 18.56 GiB free; 3.75 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+OutOfMemoryError: CUDA out of memory. Tried to allocate 3725.29 GiB (GPU 0;
+23.69 GiB total capacity; 3.73 GiB already allocated; 18.56 GiB free; 3.75 GiB
+reserved in total by PyTorch) If reserved memory is >> allocated memory try
+setting max_split_size_mb to avoid fragmentation.  See documentation for Memory
+Management and PYTORCH_CUDA_ALLOC_CONF
 ```
 For which you probably have a few solutions you immediately reach for, such as a credit card. 
 
