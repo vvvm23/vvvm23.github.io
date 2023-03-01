@@ -249,8 +249,8 @@ Take, for example, the MLP block in a standard transformer model that projects a
 vector $x$ to and from a space of dimension $d$ and $4d$:
 
 $$h = W_2 \cdot f(W_1 \cdot x + b_1) + b_2 $$
-where $f$ is a nonlinear activation function, $W_*$ are the weight matrices, and
-$b_*$ are the bias vectors.
+where $f$ is a nonlinear activation function, $W_{\*}$ are the weight matrices, and
+$b_{\*}$ are the bias vectors.
 
 To turn this into a tensor parallel layer, do the following:
 - Split $W_1$ **row**-wise into $n$ pieces, sending one to each of $n$ replicas.
@@ -304,8 +304,8 @@ throughout the model, despite no single layer causing an out of memory. This is
 somewhat orthogonal to pipeline parallelism: splitting through the model rather
 than across.
 
-Support for tensor parallelism in PyTorch is **experimental** (see this
-RFC)[https://github.com/pytorch/pytorch/issues/88838] but is supported in
+Support for tensor parallelism in PyTorch is **experimental** [see this
+RFC](https://github.com/pytorch/pytorch/issues/88838) but is supported in
 Deepspeed as "tensor-slicing model-parallelism". Tensor parallelism can be
 achieved in Jax using [`jax.pjit`](https://irhum.github.io/blog/pjit/).
 
