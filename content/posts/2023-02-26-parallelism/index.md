@@ -11,7 +11,7 @@ math: true
 
 It has been nearly half a year since I started my first real job as a
 fully-fledged graduate. This has taken the form of being an AI Engineer at
-Graphcore, a UK-based AI accelerator startup. In quite a short amount of time, I
+Graphcore, a Bristol-based AI accelerator startup. In quite a short amount of time, I
 have learned a great great deal and I am grateful for the opportunity and the
 patience of my colleagues – the latter of which is particularly needed when
 tutoring the average, fresh compsci graduate.
