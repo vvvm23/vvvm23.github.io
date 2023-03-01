@@ -35,7 +35,11 @@ which has its own processing and memory components. During execution, we load
 parameters and data onto the device, and create intermediate data on-device
 such as activations and gradients. If you are a deep learning practioner you
 should be familiar with this scenario.</p><p>You will also be familiar with this other scenario:</p><pre tabindex=0><code>&gt; x = torch.empty(int(1e12), device=device)
-OutOfMemoryError: CUDA out of memory. Tried to allocate 3725.29 GiB (GPU 0; 23.69 GiB total capacity; 3.73 GiB already allocated; 18.56 GiB free; 3.75 GiB reserved in total by PyTorch) If reserved memory is &gt;&gt; allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
+OutOfMemoryError: CUDA out of memory. Tried to allocate 3725.29 GiB (GPU 0;
+23.69 GiB total capacity; 3.73 GiB already allocated; 18.56 GiB free; 3.75 GiB
+reserved in total by PyTorch) If reserved memory is &gt;&gt; allocated memory try
+setting max_split_size_mb to avoid fragmentation.  See documentation for Memory
+Management and PYTORCH_CUDA_ALLOC_CONF
 </code></pre><p>For which you probably have a few solutions you immediately reach for, such as a credit card.</p><p>On-device memory is typically used for the following things:</p><ul><li>Storing model parameters.</li><li>Storing activations.</li><li>Storing gradients.</li><li>Storing optimiser states.</li><li>Storing code.</li></ul><blockquote><p>Having to store gradients and optimiser states on-device is one reason why
 training models uses more memory than just running inference. This is
 particularly true for more advanced (read: memory-hungry) optimisers like
