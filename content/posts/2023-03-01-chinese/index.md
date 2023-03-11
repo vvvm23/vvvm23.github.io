@@ -80,3 +80,137 @@ technology, renovating a Soviet-era store, or most famously: Japanese language
 learning. If you are interested in language learning - or learning in general - all his content is very good. His attitude embodies what I want to discuss here: just starting, keeping at it, and finding out what works for you.
 
 Without further ado.
+
+## How I started
+
+Like I said, the early beginnings were quite scattershot in nature. If I recall
+correctly, I began by playing with apps (not Duolingo, as support at the time
+was just straight-up broken) and a couple random textbooks, along with a decent
+dictionary app named Pleco - which I still use to this day. Although the process
+was a bit random, it gave me a foundational understanding of grammar and simple
+phrases.
+
+I dislike studying grammar and textbook work in general, however I feel a little
+bit is needed to bootstrap things. The problem is, I found it hard to remain
+consistent with this kind of work and so my ability quickly plateaued. I still
+ocassionally read textbooks as a bit of light reading - seeing it as extra study - 
+but I could never make them part of my dedicated study routine. I see this
+practice of "learning at least basic grammar" in popular methods for learning
+Japanese, where (depending where you go) people will often direct you to [Tae
+Kim's guide for learning
+Japanese](https://guidetojapanese.org/learn/category/grammar-guide/). I feel
+similarly, so although I didn't stick with textbook work, I can see the value in
+at least a bit.
+
+Around the same time I came to this realisation, I stumbled across an [Abroad in
+Japan video](https://youtu.be/sspUdoV9Il0) that described a way of learning
+Japanese Kanji using what is referred to as "The Heisig Method", coming from the
+book "Remembering the Kanji". I discovered that he later adapted these books for
+Simplified and Traditional Chinese, as the method for learning Kanji is very similar to Chinese's Hanzi.
+
+The method boils down to the following:
+- For each character you want to learn, identify the components of the character.
+- If a component is totally new, we have to do the rest of the steps for the component alone.
+- Get the full meaning of the character.
+- Develop some story that helps you memorise the meaning of the character, given that you know the sub-components of it.
+
+When making the story, the more vivid and weird the better. Associating stories
+with concepts is such an amazingly effective memory hack and I think at my peak I had memorised over one thousand characters this way.
+
+The book holds you hand at the start, straight-up giving you stories, though it
+encourages you to make your own stories if the baked-in ones aren't your cup of
+tea. As you progress, the prompts it provides get increasingly abstract, until
+the last section where it simply lists components in the newly introduced
+character for your reference.
+
+You may ask that if Chinese is a pictographic language, why not simply make
+associations from the appearance of the character to the concept? A
+misconception about Chinese is that *every* character has some pictographic
+meaning. This is totally false. Apart from the most basic components, most bare
+no resemblance.
+
+Yes, 火 kinda looks like a campfire. 森 looks like a bunch of trees, probably a
+forest. But how can you associate 挂 with "to hang" from apperance alone? You
+can't effectively do that for thousands of characters and that isn't even how
+the language developed. However, if you already know the left component means "finger" and the right means "brick", and I tell you the following story:
+
+> An unorthdox way of improving piano playing performance... **hanging**
+*bricks* from your *fingers* in order to stretch your fingers, and thus improve
+the distance you can span across the piano.
+
+Or how about 达, meaning "to reach".
+> Walking along a *road* one day, before a infamous criminal *dog* pulls a gun
+and tells you to **reach** for the sky.
+
+Which only makes sense when you see the outermost component as *road* and the intermost as *dog*.
+
+> If you know Chinese, you will know that 大 does not actually mean dog. However,
+the book makes a distinction between the meaning of the character as a
+*component* and as a full *character*. The book asks you in this case to
+memorise 大 as *big*, but when it appears as a component it can take the meaning
+*dog* - specifically a *big* Saint Bernard.
+
+I have thousands of stories like this, about three notebooks worth. It is quite
+a good creative exercise and taught me a lot about memory, most notably to trust
+the process. Your brain is a lot better than you think at memorising things.
+
+Making stories, however, is not enough. The book also introduces you to
+spaced-repetition cuecard systems that you review every day in order to truly
+ingrain the story and character. The book recommends using paper, though I opted
+to use a fantastic piece of software called [Anki](https://apps.ankiweb.net/).
+Though developed for desktop use, it also has phone apps available. Pretty much
+whenever I had a moment, I would open the app and do a few reviews.
+
+Though extremely effective of a method, I failed to see the point of it in a
+Chinese context. I had assumed that if I learned every character plus basic
+grammar, I could somehow read. I had also stored character readings to each
+character, with the hope it would also help me memorise pronunciation. Both
+assumptions were totally wrong.
+
+Another misconception (that I fell for) about Chinese is that one character is
+equal to one word. I feel this is easy to fall for when coming from a European
+alphabet. Though some words are indeed made up of one character, most consist of
+two or more characters. Furthermore, individual characters can have *multiple*
+meanings, as well as pronunciations! Hence, memorising individual characters
+will not lead to an understanding of real text.
+
+As you can imagine, this came as a shock to past Alex who had based his entire
+understanding off each word being one character. Though a bit crushing, in
+retrospect it wasn't a total waste of time. For one, sometimes an individual
+character in a word can strongly hint at the full word's meaning. It also serves
+as a useful memory aid when learning full words. For example, the word 电池
+consists of "electricity" and "pond", which isn't too far off the truth.
+Finally, it teaches you a lot about how characters are made up of components and
+how to identify and draw them. At my peak, I often joked that my stroke order
+was more accurate than a native's, as I was basically writing out hundreds of
+characters a day.
+
+Heisig's method is very cool, however I feel it is better to only use it if you
+are primarily interested in *writing* Chinese, after you have learned to read
+full words. I can't think of a better way to get good at writing without
+resorting to mind-numbing rote copying. I don't know if this conclusion applies
+to learning Japanese Kanji, as I don't know if multiple Kanji can be combined
+into individual words, or if the reading can change. But at least for Chinese,
+that is my conclusion.
+
+I'd like to say I came to the above conclusions quickly and pivoted to a
+different method, full of vigour. However, this actually put a stop to my
+learning for quite some time, feeling I had wasted my time. Eventually though, I
+picked myself up, also thanks to the help of my flatmate Wendy from China who was
+conveniently training to be a teacher. In exchange for helping her
+practice English in a teaching context, she would teach me Chinese, which lasted
+until the outbreak of the COVID-19 pandemic. 
+
+The teaching there was fairly typical: textbook work, homework, face-to-face
+class once per week. Although I said I dislike textbook work, it is more
+enjoyable when you have a good teacher who takes the time to prepare deeper
+explanations, extra content, and just generally being more strict with me than I
+would be on myself. I feel my ability to read and write didn't improve massively
+(as I could coast a bit on that fat stack of individual characters I had
+memorised), but it was good for my listening and speaking. However, I again
+failed to be consistent enough, often forgetting my homework and the like.
+Still, thank you Wendy for working me hard.
+
+Not much interesting happened in the early pandemic times apart from a few
+scattered attempts. Although for some reason the interest never died and was
+eventually resusitated about a year ago. This brings us to what I have been doing for the past 300 days, and why I think it is working for me.
