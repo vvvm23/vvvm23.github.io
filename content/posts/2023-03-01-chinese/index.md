@@ -213,4 +213,118 @@ Still, thank you Wendy for working me hard.
 
 Not much interesting happened in the early pandemic times apart from a few
 scattered attempts. Although for some reason the interest never died and was
-eventually resusitated about a year ago. This brings us to what I have been doing for the past 300 days, and why I think it is working for me.
+eventually resusitated about a year ago. This brings us to what I have been
+doing for the past 300 days, and why I think it is working for me.
+
+## The Plan
+
+### Stage One - The Anki Grind
+
+It is often said that when it comes to learning a language, input, input, and
+more input is key. Some even claim that input alone is enough. I don't, however
+my experiences have led me to believe that it is very high priority. However,
+the biggest bottleneck to getting enough real input is to find input that is
+comprehensible to you. And what is the biggest bottleneck for comprehensibility?
+At least for relatively easier content (up to and including everyday
+conversation) I feel the biggest bottleneck is simple lack of knowledge of
+vocabulary. Grammar at this point tends to not be incredibly complex and can be
+internalised - at least for understanding - from input.
+
+Hence, the first step of the plan is to simply amass a large vocabulary
+nowledge. To this end, my old friend Anki will be used heavily. Like before,
+everyday I will do my reviews on my phone whenever I have a free moment of time.
+However, unlike before I will be using a premade deck of cards, covering the
+required vocabulary to pass HSK 1 through 6. It should be said, my goal wasn't
+to pass any exams. It was simply to acquire a vast set of vocabulary I can learn
+from.
+
+> HSK is the standard language test in China. Since starting this deck, they
+rehashed the spec completely, so it now goes beyond 6.
+
+There is a lot of debate between making your own deck and using a premade one.
+For building a general foundational vocabulary, I personally feel it is better
+to use a premade one. Making your own requires you to be constantly making new
+cards, and if you stop making them any day your overall progress will slow. With
+a premade deck, I had a constant dripfeed of between 5 and 20 new cards per day,
+along with reviews.
+
+This meant I was making guaranteed progress every day. When I was making my own
+deck with the Heisig method, there would be periods of time where no new cards
+would be added, as it was quite labour intensive to make your own cards.
+Additionally, premade decks often come with audio, pictures, example sentences,
+and more, which is even more difficult to make. By using a premade deck, I was
+saving time and getting some extra practice with listening and reading in
+context.
+
+In the past 300 days, I only missed three days of this: one for graduating, one
+for moving house, and one from an all-day meeting, free bar combo. This resulted
+in a vocabulary of about 2500 words. The latter of which was soul crushing,
+which directly inspired me to write this post. 
+
+It is important to emphasise that this is a
+*recognition* vocabulary. My *active* vocabulay when speaking or typing is
+probably around 1000. Through reading, listening, and speaking practice I hope
+to increase this number. However, this mismatch between recognition and active
+vocabulary is normal, even in your native language. For example, although I can
+recognise the word "subterfuge" I would rarely use it in my own speech. To even
+think of an example, I had to search for it online, but once I saw the word I
+could recognise it immediately.
+
+In parallel to this, I was also developing my own deck of cuecards. One issue
+with a premade deck is that the relevance of the cards shown to you maybe not be
+high, depending on the order they appear. For example, in HSK, the word
+"basketball" appears nearly a couple thousands word before "vegetables" (HSK1
+versus HSK5). Personally, I am much more likely to talk about vegetables than I
+am about basketball, but that is just me.
+
+Therefore, developing in parallel my own deck of vocabulary tailored for
+me made sense. Whenever I found an interesting word or short phrase, I would add
+it to this deck, along with Wavenet text-to-speech audio.
+
+> I've been using the demo key for over 700 cards just try and stop me.
+
+A slight difference to the review format in my own deck is that I would actually
+produce two cards: one from Chinese to English and other from English to
+Chinese. The idea is, if I found a specific word immediately relevant to me, it
+would probably also be worth trying to add it to my *active* vocabulary by using
+the English to Chinese card. For the premade, I only used Chinese to English.
+
+I experimented with adding full sentences into the deck, but didn't find it very
+effective. For one, the number of mappings between sentences in different
+languages increases with sentence length. This made reviewing difficult, as
+there was often multiple answers, so it is difficult to be strict when
+reviewing. Hence, I limited things to words and short sentences.
+
+Although I am strict about doing reviews every day, I am somewhat relaxed with
+the reviews itself. For one, I commit the cardinal Anki sin of using the "Hard"
+button. I reserve this for cases where I perhaps remember the meaning, but
+forget the reading, or where I truly feel I hadn't fully forgotten, but just had
+a momentary lapse. Secondly, I am somewhat aggressive with "suspending" cards in
+the premade deck, that I feel are really not relevant at all to me. I would
+caution against being too aggressive about this, as some words may be more
+common or foundational than you think, however it isn't really worth memorising
+some things in this early stage. As it stands, I have approximately 50 cards
+suspended, which amounts to about 1% of the whole deck. As a rule of thumb, I
+think it is good to learn the first thousand or so in its entireity, and
+gradually get more aggressive as you progress.
+
+The final part of this first stage is to begin playing around with the language
+a bit. For me, this takes the form of annoying my girlfriend with random words
+and phrases I have learned. Though primitive, with basic grammar and a
+disproportionately sized vocabulary there is room to have fun. Other examples
+include chatting with strangers on apps like HelloTalk and Tandem, keeping a
+diary in the target language, and so on. Two of my friends both date Taiwanese
+girls, but spend most of their time just insulting each other in Mandarin.
+Whatever works for you. I didn't feel the need to stray too much out of my
+comfort zone at this stage, just have a bit of fun.
+
+I've heard some people recommend staying in this stage until you get a
+vocabulary of around 2000-5000 words. Personally I think it is fine to move on
+earlier than that at around 1500, but when isn't really a huge deal. I do want
+to emphasize that learning vocabulary like this is suprisingly effective. It can
+be argued you are learning words in isolation and hence won't translate well to
+full sentences. However, in my experience this isn't the case and has been the
+single greatest source of improving my understanding in both reading and
+listening. Of course, it doesn't scale infinitely, but I feel it is a good starting point.
+
+### Stage Two - Reading, reading, more reading
