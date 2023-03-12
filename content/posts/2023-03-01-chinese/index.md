@@ -22,11 +22,10 @@ draft: true
      >- First stage, a giant premade Anki deck + random extra words, try out random texting.
      >- Second stage, reading, reading, and more reading.
      >- Third stage, sentence mining.
- >- Where am I now?
+ >- Where am I now and what is next?
      >- Pretty good foundations in reading and typing! Can understand written text to a HSK4-5ish level, depending on topic.
      >- Better listening and speaking skills, however definitely not enough to be conversational.
      >- Lack of confidence speaking, a lot of nerves there. Need to get over it!
- >- What's next?
      >- A much higher emphasis on listening. Starting to sentence mine is good, but the volume needs to be FAR greater (1-2 hours a day at least)
      >- Literally going to Taiwan. My listening and speaking is not at a level I predicted I would be at, but I think visiting another country and give me some higher inspiration to go for such a heavy emphasis on listening and speaking, as I am for reading.
  >- Conclusion
@@ -90,6 +89,7 @@ dictionary app named Pleco - which I still use to this day. Although the process
 was a bit random, it gave me a foundational understanding of grammar and simple
 phrases.
 
+<!-- TODO: add text book, integrated and that weird old one -->
 I dislike studying grammar and textbook work in general, however I feel a little
 bit is needed to bootstrap things. The problem is, I found it hard to remain
 consistent with this kind of work and so my ability quickly plateaued. I still
@@ -328,3 +328,102 @@ single greatest source of improving my understanding in both reading and
 listening. Of course, it doesn't scale infinitely, but I feel it is a good starting point.
 
 ### Stage Two - Reading, reading, more reading
+
+At around 1500 words I felt about ready to move on to something else. Still
+continuing the Anki grind, I added into the mix a bit of reading every day. If
+you have a large enough vocabulary, you will probably find you have outgrown the
+beginner text book material, but don't know enough to read more advanced topics.
+This intermediate area is quite tough to find material for, but with enough
+digging something can be found.
+
+Personally, I quite enjoy using [DUChinese](https://duchinese.net/) (literally,
+read chinese) which is an app containing a bunch of short stories and series at
+different levels. It includes anything from simple dialogues to tidbits on
+culture, to simplified versions of classic stories. It has a limited free
+version but I eventually upgraded to their (very fair) subscription to get
+access to all stories. Either version also comes with native audio and generally
+a really clean UI. It made it quite easy whenever I had time to whip out my
+phone and read a little. Generally speaking, the keyword to look for is "graded
+reader".
+
+I can't really quantify how much this helped, however it was quite motivating
+for me. There was a distinct moment where I was reading a detective story of
+about 2000 words and I suddenly realised I was paying more attention to the
+story than the language, experiencing feelings of mystery, fear, and disgust at
+the content. Yes, to a native the limited vocabulary may make it appear
+childlike, but to me it was a really amazing turning point. To be honest, it
+showed me just how creative you can be in story telling, even with a limited
+vocabulary.
+
+I am not as consistent with daily reading as I am with Anki. I think Anki does a
+good job gameifying things and helps you come back. Or maybe I am just addicted
+to Github-style heatmaps. However, reading gives a more deeper satisfaction that
+I think is useful for getting over the intermediate hump.
+
+### Stage Three - Sentence Mining
+At this point, we reach the near present time. I had a realisation that although
+my reading ability had improve lots, my listening and speaking was much slower.
+This is a natural consequence of focusing mainly on learning vocabulary via
+reading, with only a little bit of listening sprinkled in. Furthermore, what
+listening I did know was heavily biased towards clean, textbook-style recordings
+like those in the cuecards or reading apps. When listening to my girlfriend and
+her friends speak, I can only get the general jist or mood of what they are
+saying, long after they are finished speaking. It was time to address that.
+
+Sentence mining is the idea of watching or listening to native content that is
+mostly understandable to you, searching (or mining) for new words in the content - 
+making cuecards as you go. By doing so, you can begin to watch and listen to
+native level content and plug holes in your vocabulary as you do so. It sounds
+distracting to make cuecards while watching, but if the content is
+comprehensible it should not be an incredibly frequent occurence. Furthermore,
+if you are watching a movie or multiple things about the same topic, the same
+vocabulary tends to repeat. Hence, most of the work is towards the start of the
+movie or new topic, as the number of unknown should begin to decrease.
+
+It is analogous to when watching fantasy or sci-fi in your native language when
+they introduce totally made up words. Once defined, you do not need constant
+reminders about the definition whenever it is referenced later. Your brain
+already understands the majority of the words and can focus entirely on the new.
+
+Making cuecards here is much more labour intensive than cards previously
+discussed. For one, extracting audio from the content is practically necessary.
+Secondly, it is hard to simply use automatic methods like pulling definitions
+from a dictionary, as now the meaning of the word is heavily tied to the
+surrounding context. This means a greater deal of manual work is required.
+
+Fortunately, there are some tools to help assist here. A popular choice is
+[Migaku](https://www.migaku.io/) which hooks into Youtube, Netflix, and the
+like, and can even automatically create cuecards. However, it is a payed service and I haven't yet pulled the trigger on it yet. Perhaps as I intensify my sentence mining efforts, I may well do.
+
+In the meantime, I rely on a few three resources. For Netflix, I use [Language
+Reactor](https://www.languagereactor.com/) which handles creating copy-pasteable
+subtitles and contextual definitions. I manually record audio and take
+screenshots, and add it all to Anki. For Youtube, I have a shoe-stringed
+together script that takes in a CSV file of timestamp ranges, sentence
+transcription, and word definitions. It then uses
+[youtube-dl](https://github.com/ytdl-org/youtube-dl) to download, and ffmpeg to
+process it all. I can then import it all into Anki with it's CSV import
+functionality. Sometimes I want to mine from audio-only content, in which case
+there are no fancy tricks and I just do everything manually. The Anki card
+template I use is directly pulled from [Livakivi's
+Template](https://ankiweb.net/shared/info/1757819078). The sentence mining
+method itself is also inspired by his [video on sentence
+mining](https://www.youtube.com%2Fwatch%3Fv%3DQBcQJESGQvc&usg=AOvVaw39IlZPA2jUQBR8WsgyCWhZ)
+with some extra automation on my part (boy, I love bash scripts). Livakivi
+didn't invent the method, but I found his explanation is the most comprehensive
+one that I have found.
+
+Although the cuecards include full sentences and audio, I only assess myself on
+the specific words I want to learn in the sentence. There is some debate about
+this, but personally I feel if the sentences I mined was immediately
+comprehensible to me at the time, aside from the target word, I can still
+understand it when a review comes up, provided I remembered the target word.
+Hence, I don't think it makes sense to review the full sentence.
+
+Like reading, I am nowhere near as consistent as with Anki reviews, which is
+again down to how labour intensive it is. I hope to improve this going forward,
+but I'll save discussion for this later. After all, this section is about the
+past.
+
+## Where am I? Where to go next?
+TODO
