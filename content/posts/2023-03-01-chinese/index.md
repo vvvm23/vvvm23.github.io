@@ -1,34 +1,10 @@
 ---
-title: Chinese Post Title
+title: A Total Fool's Journey with the Chinese Language
 date: 2023-03-01T10:07:35Z
 draft: true
 ---
 
-> Title Ideas
-> 270 days of Learning Chinese with Anki.
-
-> Rough Structure
- >- Introduction
- >- What did I already know? 
-     >- How I started
-         >- Basic grammar
-         >- Remembering the Simplified Hanzi arc
-         >- Bits here and there
-     >- What basis did this give me?
-         >- Decent understanding of the basic grammar, some basic phrases
-         >- Good understanding of how to write, remembering individual characters, how to memorise, intro to Anki.
- >- The plan is simple.
-     >- What did I plan to do in my current arc?
-     >- First stage, a giant premade Anki deck + random extra words, try out random texting.
-     >- Second stage, reading, reading, and more reading.
-     >- Third stage, sentence mining.
- >- Where am I now and what is next?
-     >- Pretty good foundations in reading and typing! Can understand written text to a HSK4-5ish level, depending on topic.
-     >- Better listening and speaking skills, however definitely not enough to be conversational.
-     >- Lack of confidence speaking, a lot of nerves there. Need to get over it!
-     >- A much higher emphasis on listening. Starting to sentence mine is good, but the volume needs to be FAR greater (1-2 hours a day at least)
-     >- Literally going to Taiwan. My listening and speaking is not at a level I predicted I would be at, but I think visiting another country and give me some higher inspiration to go for such a heavy emphasis on listening and speaking, as I am for reading.
- >- Conclusion
+![imgs/chinese-7.jpg]
 
 About thirteen years ago, for absolutely no reason, Alex tried learning
 Japanese. This lasted about a week, then unceremoniously stopped.
@@ -82,12 +58,16 @@ Without further ado.
 
 ## How I started
 
+![imgs/chinese-5.jpg]
+
 Like I said, the early beginnings were quite scattershot in nature. If I recall
 correctly, I began by playing with apps (not Duolingo, as support at the time
 was just straight-up broken) and a couple random textbooks, along with a decent
 dictionary app named Pleco - which I still use to this day. Although the process
 was a bit random, it gave me a foundational understanding of grammar and simple
 phrases.
+
+![imgs/Screenshot_20230312-183039_Pleco.jpg]
 
 <!-- TODO: add text book, integrated and that weird old one -->
 I dislike studying grammar and textbook work in general, however I feel a little
@@ -220,6 +200,8 @@ doing for the past 300 days, and why I think it is working for me.
 
 ### Stage One - The Anki Grind
 
+![imgs/Screenshot_20230312-182936_AnkiDroid.jpg]
+
 It is often said that when it comes to learning a language, input, input, and
 more input is key. Some even claim that input alone is enough. I don't, however
 my experiences have led me to believe that it is very high priority. However,
@@ -329,6 +311,8 @@ listening. Of course, it doesn't scale infinitely, but I feel it is a good start
 
 ### Stage Two - Reading, reading, more reading
 
+![imgs/Screenshot_20230313-114019_Du Chinese.jpg]
+
 At around 1500 words I felt about ready to move on to something else. Still
 continuing the Anki grind, I added into the mix a bit of reading every day. If
 you have a large enough vocabulary, you will probably find you have outgrown the
@@ -361,6 +345,9 @@ to Github-style heatmaps. However, reading gives a more deeper satisfaction that
 I think is useful for getting over the intermediate hump.
 
 ### Stage Three - Sentence Mining
+
+![imgs/Screenshot_20230312-182847_AnkiDroid.jpg]
+
 At this point, we reach the near present time. I had a realisation that although
 my reading ability had improve lots, my listening and speaking was much slower.
 This is a natural consequence of focusing mainly on learning vocabulary via
@@ -383,7 +370,10 @@ movie or new topic, as the number of unknown should begin to decrease.
 It is analogous to when watching fantasy or sci-fi in your native language when
 they introduce totally made up words. Once defined, you do not need constant
 reminders about the definition whenever it is referenced later. Your brain
-already understands the majority of the words and can focus entirely on the new.
+already understands the majority of the words and can focus entirely on the
+new. For this to work though, you must rely purely on target language
+subtitles. Of course, if I am truly stuck I will reveal English subtitles, but
+I'll usually give it a few tries before succumbing to defeat.
 
 Making cuecards here is much more labour intensive than cards previously
 discussed. For one, extracting audio from the content is practically necessary.
@@ -397,7 +387,7 @@ like, and can even automatically create cuecards. However, it is a payed service
 
 In the meantime, I rely on a few three resources. For Netflix, I use [Language
 Reactor](https://www.languagereactor.com/) which handles creating copy-pasteable
-subtitles and contextual definitions. I manually record audio and take
+Chinese subtitles and contextual definitions. I manually record audio and take
 screenshots, and add it all to Anki. For Youtube, I have a shoe-stringed
 together script that takes in a CSV file of timestamp ranges, sentence
 transcription, and word definitions. It then uses
@@ -426,4 +416,87 @@ but I'll save discussion for this later. After all, this section is about the
 past.
 
 ## Where am I? Where to go next?
+After working with the above method for some time, and finally writing it down
+in words here, it feels right to do some reflection on how it is going, and
+where I am going next.
+
+In terms of where I am literally going next, I am writing this sentences just
+before departing for Taiwan on a decent length holiday. Actually travelling to
+another country should be quite motivating for learning, and this is certainly
+the case for reading practice. As a result of the above method, I have
+a reading level somewhere between HSK4 and HSK5, depending on the topic. This
+means I can understand a decent amount of simpler content provided I have
+Chinese subtitles. This is overall very motivating, and an indication I finally
+found something that works for me, at least in this aspect.
+
+However, I find that despite having an imminently approaching journey abroad
+(combined with meeting-the-parents) I hadn't studied listening and speaking as
+much as I had originally planned. As such, my listening and speaking abilities
+are not as good as I had predicted. My girlfriend made an interesting proposal,
+This is something I hadn't really thought about and I think it is partially
+true for me. However, I think the other part of it simply comes down to
+nerves.
+
+Listening simply comes down to more practice. This is something I had began to
+address, but it is clear to me that a greater volume is needed. After I come
+back, I am aiming for between one and two hours of dedicated listening
+practice. This sounds like a lot, but takes the form of mainly watching fun things like Youtube and Netflix. The general opinion is for developing listening skills, volume of input is key.
+
+Speaking is a little more tricky. As I mentioned, I think a large of it is
+nerves. I am simply worried about sounding bad, even though logically that
+doesn't make sense. In this, the solution is simply to do the classic "getting
+over it". A second factor is my relatively weaker listening ability. If I can
+get the "first strike" in a conversation, I can say something that makes sense.
+However, depending on the speed of the recipient, I may not understand the
+reply and so cannot in turn reply. This possibility is another contributing
+factor to the confidence issue. However, the solution here is just to practice
+listening more. 
+
+So, in conclusion, my plan going forward is:
+- More of the same, but gradually transitioning from vocabulary from premade to sentence mining being my main source.
+- More of the listening.
+- Don't need to directly address speaking, but be aware of the psychological
+  factor, and work towards overcoming that.
+
+Couple possibilities worth addressing:
+
+> Listening practice without any subtitles?
+I tried doing this around the time I started reading a lot more, listening
+first to the story without text and transcribing it, then reading it after.
+I think this is quite effective, however I have been assured by a lot of
+sources that just doing listening practice with Chinese subtitles is totally
+fine when your listening is still weak. It is also a lot easier to be
+consistent when working with subtitles, and in my book being consistent but
+perhaps less intense is better than being sporadic.
+
+> Why not work towards an exam?
+I discovered when I used to play flute that I didn't really like standardised
+exams for hobbies. The same feelings apply here, one is that it isn't really
+tailored to what I want to learn. Secondly I don't really respect the idea of
+getting qualifications for qualifications sake. I merely follow the HSK
+vocabulary as the premade deck was high quality - the HSK component was
+irrelevant.
+
+> Are you going to rely on Anki forever?
+No, but I will for quite a while. The final goal is of course to just
+organically learn new words as you would natively. But currently the distance
+between me and there is very large. However, I am gradually transitioning from
+relying on the premade deck as my main source of vocabulary, to sentence
+mining. I may not even finish the premade deck depending on how it goes.
+
+> X got crazily fluent in Y months! Why don't you just do what they did instead
+of taking so long?
+I feel learning styles are so specific to each person, so you really need to
+find one that works for you. Perhaps I am just very dumb and inefficient at
+this, but then I feel content being dumb and inefficient as it is right for me.
+My style of learning works well for other topics, but perhaps is less optimal
+for language learning. It is anyone's guess really, I don't have strong
+opinions on speed to fluency other than everyone's definition of fluent varies
+a lot, and levels of ability displayed outwardly may be different to actual
+ability.
+
+> Get a tutor dumbass?
+Yeah, probably. Maybe eventually for speaking. But you are so rude.
+
+## Conclusion
 TODO
