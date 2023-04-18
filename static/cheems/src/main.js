@@ -1,3 +1,4 @@
+import { GLTFLoader } from './GLTFLoader.js'
 class Cheem {
   constructor(scene) {
     this.scene = scene;
