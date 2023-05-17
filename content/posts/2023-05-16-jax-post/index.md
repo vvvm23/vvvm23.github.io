@@ -271,4 +271,199 @@ The Jax version of the above multiply is about 6-7 times slower, what gives?
 
 It goes back to my earlier point that NumPy is intended for array manipulation in an op-by-op (or eager) fashion, whereas Jax is all about defining graphs and letting Jax optimise it for you. By executing Jax functions eagerly like NumPy, we leave no room for optimisation and, due to extra Jax overhead, we get a slower function. Bluntly, if you are using Jax like this, you have done something wrong.
 
-So, how do we get Jax to go fast?
+So, how do we get Jax to go fast? By making use of XLA.
+
+## Enter `jax.jit`
+
+The reason why the earlier functions were so slow is that Jax is dispatching to
+the accelerator one operation at a time. The intended way to use Jax is to
+compile multiple operations – ideally nearly all operations – together using
+XLA. To indicate which region to compile together, we can pass the function we
+want to compile to `jax.jit` or use the `@jax.jit` decorator. The function will
+not be compiled immediately, but rather upon first call – hence the name "Just
+in time compilation".
+
+During this first call, the shapes of the input arrays will be used to trace out
+a computational graph, stepping through the function with the Python interpreter
+and executing all operations one-by-one, recording what happens as we go. This
+intermediate representation can be given to XLA and subsequently compiled,
+optimised, and cached. This cache will be retrieved if the same function is
+called with the same input array shapes, skipping the tracing and compilation
+process, calling the compiled binary blob directly.
+
+Let's see it in action:
+
+```python
+def fn(params, x):
+    return x @ params['W'] + params['b']
+
+key, w_key, b_key, x_key = jax.random.split(key, 4)
+params = {
+    'W': jax.random.normal(w_key, (4, 2)),
+    'b': jax.random.uniform(b_key, (2,))
+}
+x = jax.random.normal(x_key, (4,))
+
+print("`fn` time")
+%timeit fn(params, x)
+
+print("`jax.jit(fn)` first call time")
+jit_fn = jax.jit(fn)
+%time jit_fn(params, x)
+
+print("`jit_fn` time")
+%timeit jit_fn(params, x)
+===
+Out: 
+`fn` time
+26.1 µs ± 1.56 µs per loop (mean ± std. dev. of 7 runs, 10000 loops each)
+
+`jit_fn` first call (warmup) time
+CPU times: user 35.8 ms, sys: 38 µs, total: 35.9 ms
+Wall time: 36.3 ms
+
+`jit_fn` time
+7.62 µs ± 1.88 µs per loop (mean ± std. dev. of 7 runs, 100000 loops each)
+```
+
+Like expected, the first call will take much longer than the subsequent calls. It is important to exclude the first call from any benchmarking for this reason. Also as expected, we see that even for this simple example the compiled version of the function executes far quicker than the op-by-op function.
+
+It is possible to view the traced graph as a `jaxpr` using `jax.make_jaxpr` on
+an input function. Though, somewhat hard to read once the functions grow more complex.
+```python
+jax.make_jaxpr(fn)(params, x)
+===
+Out: { lambda ; a:f32[4,2] b:f32[2] c:f32[4]. let
+    d:f32[2] = dot_general[dimension_numbers=(([0], [0]), ([], []))] c a
+    e:f32[2] = add d b
+  in (e,) }
+```
+
+And also the compiled version of the function, which is even more difficult to read.
+```python
+print(jax.jit(fn).lower(params, x).compile().as_text())
+===
+HloModule jit_fn, entry_computation_layout={(f32[4,2]{1,0},f32[2]{0},f32[4]{0})->f32[2]{0}}, allow_spmd_sharding_propagation_to_output={true}
+
+%fused_computation (param_0.1: f32[2], param_1.1: f32[4], param_2: f32[4,2]) -> f32[2] {
+  %param_1.1 = f32[4]{0} parameter(1)
+  %param_2 = f32[4,2]{1,0} parameter(2)
+  %dot.0 = f32[2]{0} dot(f32[4]{0} %param_1.1, f32[4,2]{1,0} %param_2), lhs_contracting_dims={0}, rhs_contracting_dims={0}, metadata={op_name="jit(fn)/jit(main)/dot_general[dimension_numbers=(((0,), (0,)), ((), ())) precision=None preferred_element_type=None]" source_file="<ipython-input-4-04cd19da0726>" source_line=2}
+  %param_0.1 = f32[2]{0} parameter(0)
+  ROOT %add.0 = f32[2]{0} add(f32[2]{0} %dot.0, f32[2]{0} %param_0.1), metadata={op_name="jit(fn)/jit(main)/add" source_file="<ipython-input-4-04cd19da0726>" source_line=2}
+}
+
+ENTRY %main.6 (Arg_0.1: f32[4,2], Arg_1.2: f32[2], Arg_2.3: f32[4]) -> f32[2] {
+  %Arg_1.2 = f32[2]{0} parameter(1), sharding={replicated}
+  %Arg_2.3 = f32[4]{0} parameter(2), sharding={replicated}
+  %Arg_0.1 = f32[4,2]{1,0} parameter(0), sharding={replicated}
+  ROOT %fusion = f32[2]{0} fusion(f32[2]{0} %Arg_1.2, f32[4]{0} %Arg_2.3, f32[4,2]{1,0} %Arg_0.1), kind=kOutput, calls=%fused_computation, metadata={op_name="jit(fn)/jit(main)/add" source_file="<ipython-input-4-04cd19da0726>" source_line=2}
+}
+```
+
+A more explicit and silly example is below:
+```python
+def stupid_fn(x):
+  y = jnp.copy(x)
+  for _ in range(1000):
+    x = x * x
+  return y
+
+print("`stupid_fn` time")
+%time stupid_fn(x)
+
+print("`jit_stupid_fn` first call")
+jit_stupid_fn = jax.jit(stupid_fn)
+%time jit_stupid_fn(x)
+
+print("`jit_stupid_fn` time")
+%timeit jit_stupid_fn(x)
+===
+Out: 
+`stupid_fn` time
+CPU times: user 17.2 ms, sys: 0 ns, total: 17.2 ms
+Wall time: 17.6 ms
+
+`jit_stupid_fn` first call
+CPU times: user 1.03 s, sys: 5.79 ms, total: 1.04 s
+Wall time: 1.09 s
+
+`jit_stupid_fn` time
+5.6 µs ± 1.67 µs per loop (mean ± std. dev. of 7 runs, 100000 loops each)
+```
+
+In the function, we copy the input to variably `y`, then multiply the input with
+itself 1,000 times. Finally, we simply return `y`, making the multiplications
+totally pointless. In the non-jit version, the program will happily and
+pointlessly perform the multiplication. Ignorance is bliss. On first call to the
+jit function, again we will step through all the multiplications as Jax traces
+out the computational graph. However, the compiled version used on subsequent
+calls will be blazing fast, as XLA sees the multiplications are not needed to
+obtain the final output. We can actually see this by printing the `jaxpr`:
+```python
+jax.make_jaxpr(stupid_fn)(x)
+===
+Out: { lambda ; a:f32[4]. let
+    b:f32[4] = copy a
+    c:f32[4] = mul a a
+    d:f32[4] = mul c c
+    e:f32[4] = mul d d
+    f:f32[4] = mul e e
+    ... <truncated>
+    bmh:f32[4] = mul bmg bmg
+    bmi:f32[4] = mul bmh bmh
+    bmj:f32[4] = mul bmi bmi
+    bmk:f32[4] = mul bmj bmj
+    bml:f32[4] = mul bmk bmk
+    bmm:f32[4] = mul bml bml
+    _:f32[4] = mul bmm bmm
+  in (b,) }
+```
+Which shows all 1,000 multiplications, and comparing it with the compiled version:
+```python
+print(jax.jit(stupid_fn).lower(x).compile().as_text())
+===
+Out: 
+HloModule jit_stupid_fn, entry_computation_layout={(f32[4]{0})->f32[4]{0}}, allow_spmd_sharding_propagation_to_output={true}
+
+ENTRY %main.2 (Arg_0.1: f32[4]) -> f32[4] {
+  %Arg_0.1 = f32[4]{0} parameter(0), sharding={replicated}
+  ROOT %copy = f32[4]{0} copy(f32[4]{0} %Arg_0.1)
+}
+```
+Which only contains a single copy operation. Experiment with the above code
+blocks yourself by changing the number of iterations in the loop. You will find
+that the time to execute the original function will increase with number of
+iterations. Additionally, the time to trace the graph on first call to the jit
+function will also increase, as this happens using the Python interpreter.
+However, the time to execute the compiled version on subsequent calls will not
+increase in a meaningful way.
+
+The above is a contrived example, but demonstrates a critical point: **we can
+let XLA do a lot of the heavy lifting for us optimisation-wise.** This is
+different to other frameworks that execute eagerly, where the above code would
+happily execute extremely pointlessly. This isn't really a fault of the
+framework as eager execution has a ton of other benefits, but demonstrates the
+point that compiling our functions using XLA can help optimise our code in ways
+we didn't know about, or could reasonably anticipate.
+
+Secondly, in order to let XLA do the best job it can, **`jax.jit` needs to be
+used in the widest possible context**. For example, (again contrived) if we had
+only jit compiled the multiplication, XLA would be unaware that the outermost
+loop was unnecessary and could not optimise it out – it is simply outside the
+region to be compiled. A concrete machine learning example would be wrapping the entire training step – forward, backwards and optimiser step – in `jax.jit`.
+
+It turns out most machine learning applications can be expressed in this way:
+one monolithic compiled function that we throw data and model parameters at. In
+the original Jax paper, they say "The design of JAX is informed by the
+observation that ML work- loads are typically dominated by PSC
+(pure-and-statically-composed) subroutines" which lends itself well to this
+compilation process. 
+
+Although eager mode execution is very useful for development work, once
+development is done there is less benefit to eager execution over heavily
+optimised binary blobs, hungry for our data. However, such optimisation relies
+on said pureness and staticness, which must be enforced in order to jit-compile
+our functions. 
+
+## What can and can't be `jit` compiled, and how to make more can.
