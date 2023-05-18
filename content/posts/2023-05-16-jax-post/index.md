@@ -466,4 +466,96 @@ optimised binary blobs, hungry for our data. However, such optimisation relies
 on said pureness and staticness, which must be enforced in order to jit-compile
 our functions. 
 
-## What can and can't be `jit` compiled, and how to make more can.
+## What can and can't be `jit` compiled, and how to make more can
+
+The biggest blocker to jit compiling functions is that **all arrays to have
+static shapes**. That is to say, given the **shapes** and shapes alone of the
+function inputs, it should be possible to determine the shape of all other
+variables in the traced graph at compile time.
+
+For example, let's define a function that takes in an input array `x` and
+boolean mask `mask` with the same shape as `x` and returns a new array with
+masked positions set to a large negative number.
+
+```python
+def mask_tensor(x, mask):
+  x = x.at[mask].set(-100.)
+  return x
+
+key, x_key, mask_key = jax.random.split(key, 3)
+x = jax.random.normal(x_key, (4,4))
+mask = jax.random.uniform(mask_key, (4,4)) < 0.5
+
+print("calling eager function")
+print(mask_tensor(x, mask))
+
+print("calling compiled function")
+jit_mask_tensor = jax.jit(mask_tensor)
+jit_mask_tensor(x, mask)
+===
+Out: calling eager function
+[[-3.8728207e-01 -1.3147168e+00 -2.2046556e+00  4.1792620e-02]
+ [-1.0000000e+02 -1.0000000e+02 -8.2206033e-02 -1.0000000e+02]
+ [ 2.1814612e-01  9.6735013e-01  1.3497342e+00 -1.0000000e+02]
+ [-8.7061942e-01 -1.0000000e+02 -1.0000000e+02 -1.0000000e+02]]
+calling compiled function
+
+---------------------------------------------------------------------------
+
+NonConcreteBooleanIndexError              Traceback (most recent call last)
+
+<ipython-input-23-2daf7923c05b> in <cell line: 14>()
+     12 print("calling compiled function")
+     13 jit_mask_tensor = jax.jit(mask_tensor)
+---> 14 jit_mask_tensor(x, mask)
+
+    [... skipping hidden 12 frame]
+
+5 frames
+
+/usr/local/lib/python3.10/dist-packages/jax/_src/numpy/lax_numpy.py in _expand_bool_indices(idx, shape)
+   4297       if not type(abstract_i) is ConcreteArray:
+   4298         # TODO(mattjj): improve this error by tracking _why_ the indices are not concrete
+-> 4299         raise errors.NonConcreteBooleanIndexError(abstract_i)
+   4300       elif _ndim(i) == 0:
+   4301         raise TypeError("JAX arrays do not support boolean scalar indices")
+
+NonConcreteBooleanIndexError: Array boolean indices must be concrete; got ShapedArray(bool[4,4])
+```
+
+Executing the function in eager mode works as expected. However, the shape of
+intermediate variables cannot be known given knowledge of the input shapes
+alone, but rather depends on the number of elements in `mask` that are `True`.
+Therefore, we cannot compile the function as not all shapes are static. Often
+though, we can rewrite the function to perform the same action and with static
+shapes:
+
+```python
+def mask_tensor(x, mask):
+  x = ~mask * x - mask*100.
+  return x
+
+print("calling eager function")
+print(mask_tensor(x, mask))
+
+print("calling compiled function")
+jit_mask_tensor = jax.jit(mask_tensor)
+print(jit_mask_tensor(x, mask))
+===
+calling eager function
+[[   1.012518   -100.           -0.8887863  -100.        ]
+ [-100.         -100.         -100.            1.5008001 ]
+ [-100.           -0.6636745     0.57624763   -0.94975847]
+ [   1.1513114  -100.            0.88873196 -100.        ]]
+calling compiled function
+[[   1.012518   -100.           -0.8887863  -100.        ]
+ [-100.         -100.         -100.            1.5008001 ]
+ [-100.           -0.6636745     0.57624763   -0.94975847]
+ [   1.1513114  -100.            0.88873196 -100.        ]]
+```
+
+All intermediate shapes will be known at compile time. To break it down, we
+multiply `x` by zero where `mask` is True, and by one where it is `False`. We
+then add a new array that is zero where `mask` is `False` and `-100` where
+`mask` is `True`. At this point we have two arrays with concrete shapes. Adding
+them together yields the correct result, which is similarly concrete.
