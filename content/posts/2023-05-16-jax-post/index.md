@@ -16,47 +16,46 @@ draft: true
 
 - Jax Discussion
     - Basic usage of Jax looks a lot like numpy.
-        - Show jnp interface
-        - First exception is randomness
-        - Demonstrate that Jax shouldn't really be used exactly like numpy by a speed comparison.
+        - Show jnp interface X
+        - First exception is randomness X
+        - Demonstrate that Jax shouldn't really be used exactly like numpy by a speed comparison. X
 
     - How should we use it? (maybe step by step with code)
-        - Simply show what you want to happen in expressive Python.
-        - Wrap it in a `jax.jit` decorator to indicate you want this region to be compiled.
-        - Let the (python) interpreter execute your function op by op (slowly).
-        - This will trace out a computational graph which can be viewed using `jax.make_jaxpr`. Note, this is the raw trace and is not optimised.
-        - Pass the traced graph to XLA, where it can be (aggressively) optimised and compiled. Useless ops will be dropped.
-        - Next time the function is called, instead of tracing again, the optimised compiled binary blob will be fetched and executed (very fast).
-        - This is fantastic if your program is basically running the same function over and over again. Such as in a DL training loop where we just pass different data to the train step.
+        - Simply show what you want to happen in expressive Python. X
+        - Wrap it in a `jax.jit` decorator to indicate you want this region to be compiled. X
+        - Let the (python) interpreter execute your function op by op (slowly). X
+        - This will trace out a computational graph which can be viewed using `jax.make_jaxpr`. Note, this is the raw trace and is not optimised. X
+        - Pass the traced graph to XLA, where it can be (aggressively) optimised and compiled. Useless ops will be dropped. X
+        - Next time the function is called, instead of tracing again, the optimised compiled binary blob will be fetched and executed (very fast). X
+        - This is fantastic if your program is basically running the same function over and over again. Such as in a DL training loop where we just pass different data to the train step. X
 
     - Caveats
-        - Should try and jit in the widest possible region to give the most context to the compiler: ideally the entire train step including model forward, model backward passes, and optimser updates.
-        - Tracing (by default) uses the **shape** of the input to trace and compile. Hence, changing the shape of the input to the same function will cause the trace and compile stages to happen again. We should aim to keep the input shape the same, or at least limited to a small set of possibilities.
+        - Should try and jit in the widest possible region to give the most context to the compiler: ideally the entire train step including model forward, model backward passes, and optimser updates. X
+        - Tracing (by default) uses the **shape** of the input to trace and compile. Hence, changing the shape of the input to the same function will cause the trace and compile stages to happen again. We should aim to keep the input shape the same, or at least limited to a small set of possibilities. X
         - In the `jax.jit` regions Python (non-Jax) code will only be executed during tracing and not included in the compiled version. This has a lot of implications, such as conditionals, loops, prints, etc. (expand later)
 
     - Differences between numpy and jax
-        - I feel calling Jax "accelerated numpy" is not giving Jax enough credit. The way of using them is totally different.
-        - Jax is slow to dispatch to the accelerator which makes op-by-op (eager) execution much slower than running Numpy on CPU – even with access to crazy fast hardware. This makes this style of execution in Jax untenable apart from debugging.
-        - As numpy is intended to be used op-by-op, there is no room for optimisation by the compiler. Hence, the burden on the developer to write performant code and call the fast, heavily optimised, vectorised numpy functions as much as possible, over working at a Python level, which can be orders of magnitude slower.
-        - Although of course the developer should think about performance when writing Jax, the burden is reduced by XLA. We are much more free to just write what we want to happen, and rely on XLA to optimise the hell out of everything.
-        - Stupid loop example?
-        - The above reminds me a bit of programming in Rust, where the developer works with the strict but knowledgeable compiler – kinda like a very serious tango partner. Jax has worse error messages as it stands though
+        - I feel calling Jax "accelerated numpy" is not giving Jax enough credit. The way of using them is totally different. X
+        - Jax is slow to dispatch to the accelerator which makes op-by-op (eager) execution much slower than running Numpy on CPU – even with access to crazy fast hardware. This makes this style of execution in Jax untenable apart from debugging. X
+        - As numpy is intended to be used op-by-op, there is no room for optimisation by the compiler. Hence, the burden on the developer to write performant code and call the fast, heavily optimised, vectorised numpy functions as much as possible, over working at a Python level, which can be orders of magnitude slower. X
+        - Although of course the developer should think about performance when writing Jax, the burden is reduced by XLA. We are much more free to just write what we want to happen, and rely on XLA to optimise the hell out of everything. X
+        - Stupid loop example? X
+        - The above reminds me a bit of programming in Rust, where the developer works with the strict but knowledgeable compiler – kinda like a very serious tango partner. Jax has worse error messages as it stands though X
 
     - Finished my ideological rant, to summarise: **for the final application we want to only run jax ops in jitted regions, where the jitted region is as large as possible, with fixed input shapes. We define what we want to happen which is transformed into a computational graph, and rely on XLA to optimise and compile it.**
 
     - As jitting functions is such a key concept, it is worth diving deeper into what can and can't be jitted, and how to turn tricky functions into something that can be jitted.
-        - Demonstrate the unknown shape error, briefly implied early (as must have shape to trace, not a real array)
-        - Shape errors also extend to shapes inside the graph (not just inputs). For example. Show "function with argument-value dependent shapes" example https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html
-        - In general, it is possible to change dynamicly shaped inputs to something that is static such as through padding or masking.
-        - Discuss the pure functions, and how it isn't really pure at a Python level. (implicit arguments that are hidden)
+        - Shape errors also extend to shapes inside the graph (not just inputs). For example. Show "function with argument-value dependent shapes" example https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html X
+        - In general, it is possible to change dynamicly shaped inputs to something that is static such as through padding or masking. X
+        - Discuss the pure functions, and how it isn't really pure at a Python level. (implicit arguments that are hidden) 
         - Demonstrate the (Python) branching and how only one is traced.
         - Jax conditionals, resulting in both branches being compiled.
         - Similar for Python loops and how they get unrolled
         - A real Jax loop, for example in a diffusion inference loop
         - Which loop to use, trade off between compile time and optimisation potential
-        - No in place updates (but XLA may so don't worry about performance, just in place at a Python level makes analysis and transformation difficult)
+        - No in place updates (but XLA may so don't worry about performance, just in place at a Python level makes analysis and transformation difficult) X
             - See table https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html#jax.numpy.ndarray.at
-        - All jax ops must have array inputs (unlike numpy) to avoid degradation in performance.
+        - All jax ops must have array inputs (unlike numpy) to avoid degradation in performance. X
         - However, this doesn't mean the arguments to the jitted function can't be something other than arrays. In fact, they can be any arbitrary PyTree. I won't dive deep into PyTrees here, but here simply treat a PyTree as a nested Python container with arrays at the leaves. This is useful for neural network parameters which lend themselves to be a nested dictionary. Same restrictions apply to shape though: the structure of the nesting and the shape of the array leaves must be the same in order to cache correctly.
 
     - Another key concept in Jax is the ability to transform functions into other functions. Jax comes with a few inbuilt ones that you will find useful, especially the "A" in Jax which comes from its suite of Autodiff function transformations.
@@ -258,6 +257,43 @@ Out: [Array([[ 1.0308125 , -0.07533383],
         [-0.6206856 , -0.12488112]], dtype=float32)]
 ```
 
+Another small difference is that Jax does not support inplace operations:
+```python
+x1[0] = 5
+===
+Out: 
+TypeError                                 Traceback (most recent call last)
+
+<ipython-input-25-e0318c4eb619> in <cell line: 1>()
+----> 1 x1[0] = 5
+
+/usr/local/lib/python3.10/dist-packages/jax/_src/numpy/array_methods.py in _unimplemented_setitem(self, i, x)
+    261          "or another .at[] method: "
+    262          "https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html")
+--> 263   raise TypeError(msg.format(type(self)))
+    264 
+    265 def _operator_round(number: ArrayLike, ndigits: Optional[int] = None) -> Array:
+
+TypeError: '<class 'jaxlib.xla_extension.ArrayImpl'>' object does not support item assignment. JAX arrays are immutable. Instead of ``x[idx] = y``, use ``x = x.at[idx].set(y)`` or another .at[] method: https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html
+```
+Like the error message says, Jax arrays are **immutable**, hence the same issue
+applies to other inplace ops like `+=`, `*=`, and friends. Also like the error
+message says, we can use the `at` property on Jax arrays to perform functionally pure equivalents.
+```python
+x1_p999 = x1.at[0].add(999)
+x1, x1_p999
+===
+Out: (Array([0, 2, 4, 6], dtype=int32), Array([999,   2,   4,   6], dtype=int32))
+```
+
+> Applying `x1 += 5` and similar *does* work, but under-the-Python-hood this is
+just `x1 = x1 + 5` anyway. It just creates a new array and hence is still
+immutable.
+
+Jax functions also only accept array inputs. This is contrast to NumPy that will
+happily accept Python lists. Jax chooses to do this to avoid silent degradation
+in performance by just erroring instead.
+
 That's kinda interesting, but I am not seeing a great deal of pull towards Jax over NumPy so far. It gets more concerning when we start timing the functions:
 ```python
 x1_np, x2_np = np.asarray(x1), np.asarray(x2)
@@ -288,8 +324,8 @@ a computational graph, stepping through the function with the Python interpreter
 and executing all operations one-by-one, recording what happens as we go. This
 intermediate representation can be given to XLA and subsequently compiled,
 optimised, and cached. This cache will be retrieved if the same function is
-called with the same input array shapes, skipping the tracing and compilation
-process, calling the compiled binary blob directly.
+called with the same input array shapes and dtype, skipping the tracing and
+compilation process, calling the compiled binary blob directly.
 
 Let's see it in action:
 
@@ -326,7 +362,10 @@ Wall time: 36.3 ms
 7.62 µs ± 1.88 µs per loop (mean ± std. dev. of 7 runs, 100000 loops each)
 ```
 
-Like expected, the first call will take much longer than the subsequent calls. It is important to exclude the first call from any benchmarking for this reason. Also as expected, we see that even for this simple example the compiled version of the function executes far quicker than the op-by-op function.
+Like expected, the first call will take much longer than the subsequent calls.
+It is important to exclude the first call from any benchmarking for this reason.
+Also as expected, we see that even for this simple example the compiled version
+of the function executes far quicker than the op-by-op function.
 
 It is possible to view the traced graph as a `jaxpr` using `jax.make_jaxpr` on
 an input function. Though, somewhat hard to read once the functions grow more complex.
@@ -445,20 +484,28 @@ different to other frameworks that execute eagerly, where the above code would
 happily execute extremely pointlessly. This isn't really a fault of the
 framework as eager execution has a ton of other benefits, but demonstrates the
 point that compiling our functions using XLA can help optimise our code in ways
-we didn't know about, or could reasonably anticipate.
+we didn't know about, or could reasonably anticipate. What exact optimisations
+XLA applies is a topic outside the scope of this blog, however one example is
+that the earlier statement about Jax arrays not allowing in-place operations
+results in no potential performance loss. This is because XLA can identify cases
+where it can replace operations with in-place equivalents. So basically, don't
+sweat it if you were worried earlier about not being able to do stuff in-place.
 
 Secondly, in order to let XLA do the best job it can, **`jax.jit` needs to be
 used in the widest possible context**. For example, (again contrived) if we had
 only jit compiled the multiplication, XLA would be unaware that the outermost
 loop was unnecessary and could not optimise it out – it is simply outside the
-region to be compiled. A concrete machine learning example would be wrapping the entire training step – forward, backwards and optimiser step – in `jax.jit`.
+region to be compiled. A concrete machine learning example would be wrapping the
+entire training step – forward, backwards and optimiser step – in `jax.jit`.
 
 It turns out most machine learning applications can be expressed in this way:
 one monolithic compiled function that we throw data and model parameters at. In
 the original Jax paper, they say "The design of JAX is informed by the
 observation that ML work- loads are typically dominated by PSC
 (pure-and-statically-composed) subroutines" which lends itself well to this
-compilation process. 
+compilation process. Even functions that are seemingly not static can be
+converted into a static form, for example padding sequences in language modeling
+tasks or rewriting our functions in clever ways.
 
 Although eager mode execution is very useful for development work, once
 development is done there is less benefit to eager execution over heavily
@@ -466,14 +513,94 @@ optimised binary blobs, hungry for our data. However, such optimisation relies
 on said pureness and staticness, which must be enforced in order to jit-compile
 our functions. 
 
-## What can and can't be `jit` compiled, and how to make more can
+## What can, can't, and kind of be `jit` compiled
 
 The biggest blocker to jit compiling functions is that **all arrays to have
 static shapes**. That is to say, given the **shapes** and shapes alone of the
 function inputs, it should be possible to determine the shape of all other
 variables in the traced graph at compile time.
 
-For example, let's define a function that takes in an input array `x` and
+Take for example the following function, that given an integer `length` returns
+an array filled with the value `val`:
+```python
+def create_filled(val, length):
+  return jnp.full((length,), val)
+
+print(create_filled(1.0, 5))
+print(create_filled(2, 2))
+
+jit_create_filled = jax.jit(create_filled)
+jit_create_filled(2, 5)
+===
+Out: [1. 1. 1. 1. 1.]
+[2 2]
+
+---------------------------------------------------------------------------
+
+TypeError                                 Traceback (most recent call last)
+
+<ipython-input-13-0ecd13642388> in <cell line: 8>()
+      6 
+      7 jit_create_filled = jax.jit(create_filled)
+----> 8 jit_create_filled(2, 5)
+
+    [... skipping hidden 12 frame]
+
+3 frames
+
+/usr/local/lib/python3.10/dist-packages/jax/_src/core.py in canonicalize_shape(shape, context)
+   2037   except TypeError:
+   2038     pass
+-> 2039   raise _invalid_shape_error(shape, context)
+   2040 
+   2041 def canonicalize_dim(d: DimSize, context: str="") -> DimSize:
+
+TypeError: Shapes must be 1D sequences of concrete values of integer type, got (Traced<ShapedArray(int32[], weak_type=True)>with<DynamicJaxprTrace(level=1/0)>,).
+If using `jit`, try using `static_argnums` or applying `jit` to smaller subfunctions.
+The error occurred while tracing the function create_filled at <ipython-input-13-0ecd13642388>:1 for jit. This concrete value was not available in Python because it depends on the value of the argument length.
+```
+
+In eager execution, the function returns what we expected. However, when tracing
+the jit version of the function we encounter an error. This is because when
+tracing the `jnp.ones` function will receive only a traced, zero-dimensional
+array which only contains information about the shape and dtype. It is therefore
+impossible to trace the output array as the shape is not known at compile time.
+
+We can resolve this issue by using an extra argument in `jax.jit` named
+`static_argnums. This specifies which arguments to **not** trace and just treat
+it as a regular Python value at compile time. In the `jaxpr` graph, the `length`
+argument to our Python-level function essentially becomes a constant in the graph:
+```python
+jit_create_filled = jax.jit(create_filled, static_argnums=(1,))
+print(jit_create_filled(2, 5))
+print(jit_create_filled(1., 10))
+
+print(jax.make_jaxpr(create_filled, static_argnums=(1,))(2, 5))
+print(jax.make_jaxpr(create_filled, static_argnums=(1,))(1.6, 10))
+===
+Out: [2 2 2 2 2]
+[1. 1. 1. 1. 1. 1. 1. 1. 1. 1.]
+
+{ lambda ; a:i32[]. let
+    b:i32[5] = broadcast_in_dim[broadcast_dimensions=() shape=(5,)] a
+  in (b,) }
+{ lambda ; a:f32[]. let
+    b:f32[10] = broadcast_in_dim[broadcast_dimensions=() shape=(10,)] a
+  in (b,) }
+```
+
+As the shape is a constant in the graph now, each time a different `length` is
+passed to the function the function will need to be recompiled. Hence, this
+approach only really works if the number of values `length` will take is very
+limited, otherwise we will be constantly compiling different graphs.
+
+Make no mistake, even though the Python-level function is identical, the
+underlying binaries that are called for different inputs are completely
+different. We've basically turned the caching from matching on function and
+input shapes, to matching on function, input shapes, and also the **value** of
+our static arguments.
+
+A different example now: let's define a function that takes in an input array `x` and
 boolean mask `mask` with the same shape as `x` and returns a new array with
 masked positions set to a large negative number.
 
@@ -526,9 +653,15 @@ NonConcreteBooleanIndexError: Array boolean indices must be concrete; got Shaped
 Executing the function in eager mode works as expected. However, the shape of
 intermediate variables cannot be known given knowledge of the input shapes
 alone, but rather depends on the number of elements in `mask` that are `True`.
-Therefore, we cannot compile the function as not all shapes are static. Often
-though, we can rewrite the function to perform the same action and with static
-shapes:
+Therefore, we cannot compile the function as not all shapes are static.
+
+Additionally, we can't simply use `static_argnum` as `mask` itself is not
+hashable and hence can't be used to match calls to caches. Furthermore, even if
+it could the number of possible values of `mask` is too high. To handle all
+possibiltiies, we would need to compile `2**16` or 65,536 graphs.
+
+Often though, we can rewrite the function to perform the same action and with
+static shapes:
 
 ```python
 def mask_tensor(x, mask):
@@ -559,3 +692,50 @@ multiply `x` by zero where `mask` is True, and by one where it is `False`. We
 then add a new array that is zero where `mask` is `False` and `-100` where
 `mask` is `True`. At this point we have two arrays with concrete shapes. Adding
 them together yields the correct result, which is similarly concrete.
+
+A related case that can "kinda" be jit compiled is where shapes can be
+determined at compile time but the shapes of the inputs change a lot. As we
+retrieve cached compiled functions by looking at which function was called and
+the shape of the inputs, this will result in a lot of compiling. This makes
+sense, as the graph itself is optimised for a specific static shape, but will
+result in silent slowdowns.
+
+```python
+import random
+
+def cube(x):
+  return x*x*x
+
+def random_shape_test(fn):
+  length = random.randint(1, 1000)
+  return fn(jnp.empty((length,)))
+
+print("random length eager time:")
+%timeit -n1000 random_shape_test(cube)
+
+jit_cube = jax.jit(cube)
+jit_cube(x1)
+
+print("fixed length compiled time:")
+%timeit -n1000 jit_cube(x1)
+
+print("random length compiled time:")
+%timeit -n1000 random_shape_test(jit_cube)
+===
+Out:
+random length eager time:
+The slowest run took 43.13 times longer than the fastest. This could mean that an intermediate result is being cached.
+6.12 ms ± 8.37 ms per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+fixed length compiled time:
+7.31 µs ± 241 ns per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+random length compiled time:
+The slowest run took 53.37 times longer than the fastest. This could mean that an intermediate result is being cached.
+4.55 ms ± 6.11 ms per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+```
+
+Therefore, we should try our best to limit the number of shapes that our jitted
+functions will take as input. Common examples include padding sequences to a
+single length, or setting `drop_last=True` on data loaders to avoid different
+numbers of examples in a batch.
