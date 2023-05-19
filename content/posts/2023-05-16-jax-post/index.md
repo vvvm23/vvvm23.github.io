@@ -56,18 +56,18 @@ draft: true
         - No in place updates (but XLA may so don't worry about performance, just in place at a Python level makes analysis and transformation difficult) X
             - See table https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html#jax.numpy.ndarray.at
         - All jax ops must have array inputs (unlike numpy) to avoid degradation in performance. X
-        - However, this doesn't mean the arguments to the jitted function can't be something other than arrays. In fact, they can be any arbitrary PyTree. I won't dive deep into PyTrees here, but here simply treat a PyTree as a nested Python container with arrays at the leaves. This is useful for neural network parameters which lend themselves to be a nested dictionary. Same restrictions apply to shape though: the structure of the nesting and the shape of the array leaves must be the same in order to cache correctly.
+        - However, this doesn't mean the arguments to the jitted function can't be something other than arrays. In fact, they can be any arbitrary PyTree. I won't dive deep into PyTrees here, but here simply treat a PyTree as a nested Python container with arrays at the leaves. This is useful for neural network parameters which lend themselves to be a nested dictionary. Same restrictions apply to shape though: the structure of the nesting and the shape of the array leaves must be the same in order to cache correctly. X
 
     - Another key concept in Jax is the ability to transform functions into other functions. Jax comes with a few inbuilt ones that you will find useful, especially the "A" in Jax which comes from its suite of Autodiff function transformations.
         - It is even possible to write your own custom function transforms, which I will discuss in a later post in this series. 
         - Discuss the autodiff suite of functions
-            - `grad` and `value_and_grad`
-            - second derivatives by simply nesting
-            - aux values and such
+            - `grad` and `value_and_grad` X
+            - second derivatives by simply nesting X
+            - aux values and such X
         - Touch on `vmap`
-            - But I haven't personally found much use for it as I am too used to writing code for batches anyway.
+            - But I haven't personally found much use for it as I am too used to writing code for batches anyway. X
         - Mention `pmap` and other `p` functions! But I'll touch on those in a later post.
-            - Jax has pretty excellent support for parallelism which is one of its strengths
+            - Jax has pretty excellent support for parallelism which is one of its strengths X
 
 - Conclusion
     - I would argue that Jax isn't really accelerated numpy as how you use them is totally different. Expand here to solidify the central point.
@@ -1181,7 +1181,202 @@ Out: Array(True, dtype=bool)
 > Do not look at the `jaxpr` of the above function.
 
 ## Briefly, PyTrees
+You may have noticed that so far, all the functions we have compiled using
+`jax.jit` only take flat structures like single arrays or values as inputs. This
+poses a problem if we later want to use Jax for massive machine learning
+problems. Are we going to write one-by-one all the parameter matrices of GPT-3?
+
+In reality, we can use arbitrary **PyTrees** as inputs, intermediates, and
+outputs to our jit compiled functions.
+
+The formal definition of a PyTree is "a tree-like structure built out of
+container-like Python objects. Classes are considered container-like if they are
+in the PyTree registry". By default, the PyTree registry includes the classes
+`list`, `tuple`, and `dict`. Additionally, any object *not* in the registry is
+considered a leaf (i.e: a single element or single array). A PyTree can contain
+other PyTrees, forming a nested structure, and leaves.
+
+> It is possible to registry your own custom classes to the PyTree registry, but
+> this is outside the scope of this blog.
+
+When calling a jit function, Jax will check for an existing cached compiled
+function with the same PyTree structure, leaf shapes, and static argument
+values. If all this matches, the compiled function will be reused. Like keeping
+the array shapes the same in order to use cached functions as much as possible,
+you should aim to keep the PyTree structure the same.
+
+Let's have a concrete example, implementing the forward pass of a simple
+multi-layer perceptron. First, we will build a list of dictionaries. Each
+dictionary in the list represents one layer, and the dictionary stores the
+weights and biases for that particular layer:
+```python
+dims = [784, 64, 10]
+
+key, *subkeys = jax.random.split(key, len(dims))
+
+params = [
+    {
+        'W': jax.random.normal(w_key, (out_dim, in_dim)),
+        'b': jnp.zeros((out_dim,))
+    }
+    for w_key, in_dim, out_dim in zip(subkeys, dims[:-1], dims[1:])
+]
+
+jax.tree_util.tree_structure(params), jax.tree_util.tree_map(lambda l: str(l.shape), params)
+===
+Out: 
+(PyTreeDef([{'W': *, 'b': *}, {'W': *, 'b': *}]),
+[{'W': '(64, 784)', 'b': '(64,)'}, {'W': '(10, 64)', 'b': '(10,)'}])
+```
+The variable `params` fits the definition of a PyTree. The outputs of the cell are the structure of the PyTree and another PyTree showing the shape of the leaves of `params`. Let's define the forward pass as function that takes `params` and an array `x` as its inputs, and decorate it with `jax.jit`:
+```python
+@jax.jit
+def feed_forward(params, x):
+    for p in params:
+        x = jax.nn.tanh(p['W'] @ x + p['b'])
+
+    return x
+    
+key, x_key = jax.random.split(key)
+feed_forward(params, jax.random.normal(x_key, (dims[0],)))
+===
+Out:
+Array([-1.        , -0.93132854, -1.        , -0.99993926,  0.9998755 ,
+       -0.9970358 , -0.8498685 ,  1.        , -0.9999984 ,  1.        ],      dtype=float32)
+```
+
+> If you've ever printed a PyTorch model `model.state_dict()` before, you should
+> be able to see how we can achieve something similar by solely using nested >
+> dictionaries. I just used a list in the above example to demonstrate how we can
+> nest arbitrary combinations of containers, so long as they are in the PyTree
+> registry. 
+
+In the simplest case, PyTrees are simply nice containers to help us package
+together inputs to our functions. They can get much more involved and complex
+than that, but I haven't delved deep into the topic yet. For another time I
+guess.
 
 ## Function Transformations
+It can't really be a Jax blog without mentioning function transformations. One
+of the first things you read on the Github page for Jax is "Dig [...] deeper,
+and you'll see that JAX is really an extensible system for composable function
+transformations". I've begun tinkering with this system myself but not enough to
+write in-depth on it, though I suspect it would mandate an entirely separate
+article just to do it justice. 
+
+> Just to give you a taste of what is possible, see [this
+> repository](https://github.com/davisyoshida/lorax) that lets you add LoRA to
+> arbitrary Jax functions.
+
+Jax comes with a number of inbuilt function transformations that must be
+mentioned. A function transformation is simply a function that takes another
+function, and returns yet another function. Hey, a function transformation
+transforms functions.
+
+You've already met one in the form of `jax.jit`. Two others are the `jax.grad`
+and `jax.value_and_grad` transforms, that form the auto-differentiation part of
+Jax. Autodiff is an essential ingredient of training machine learning models.
+
+In a nutshell, `jax.grad` takes in a function `f`, and returns another function
+that computes the derivative of `f`. `jax.value_and_grad` returns a function
+that in turn returns a tuple `(value, grad)` where `value` is the output of `f(x)`
+and `grad` is the output of `jax.grad(f)(x)`:
+
+```python
+def fn(x):
+    return 2*x # derivative is 2 everywhere
+
+print(fn(5.))
+print(jax.grad(fn)(5.))
+print(jax.value_and_grad(fn)(5.))
+===
+Out:
+10.0
+2.0
+(Array(10., dtype=float32, weak_type=True), Array(2., dtype=float32, weak_type=True))
+```
+
+By default, the autodiff functions will take the gradient with respect to the
+first function argument, and hence the output of the new function `jax.grad(f)`
+will be of the same shape as the first argument of `f`:
+```python
+def dummy_loss_fn(params, x):
+    y = feed_forward(params, x)
+    return y.sum()
+
+grad_loss_fn = jax.grad(dummy_loss_fn)
+grads = grad_loss_fn(params, jnp.zeros(dims[0]))
+jax.tree_util.tree_structure(grads)
+===
+Out: PyTreeDef([{'W': *, 'b': *}, {'W': *, 'b': *}])
+```
+
+> The above is a dummy example where we package together a model forward pass and
+> "loss" computation in a single function. We then call `jax.grad` on it to get
+> gradients with respect to the model parameters. This is a common pattern in Jax
+> training loops, usually followed by calculating the parameter updates and
+> computing the new parameters. In a follow up post I will make on Flax, you
+> will see this pattern crop up a lot.
+
+We can change this default behaviour of selecting the first argument by
+specifying the `argnums` parameter to the index of the argument we want to
+differentiate with respect to. We can even specify multiple arguments by passing
+a sequence of integers.
+
+We can even apply `grad` to a function that already has had `grad` applied to
+it, obtaining the second derivative:
+```python
+def fn(x):
+    return 2 * x**3
+
+x = 1.0
+grad_fn = jax.grad(fn)
+grad_grad_fn = jax.grad(grad_fn)
+
+print(f"d0x: {fn(x)}, d1x: {grad_fn(x)}, d2x: {grad_grad_fn(x)}")
+===
+Out: d0x: 2.0, d1x: 6.0, d2x: 12.0
+```
+
+Sometimes, we want to compute the gradient of a function that also outputs
+auxilliary data. A common example is a loss function that also outputs other
+metrics like accuracy. We want to exclude this auxilliary data from gradient
+calculations, which can be achieved by passing `has_aux=True` to `grad`. We do this in the following example, to return both our fake "loss" and the output of `feed_forward` itself, whilst also computing the gradient with respect to `params`! A lot going on!
+```python
+def dummy_loss_fn(params, x):
+    y = feed_forward(params, x)
+    return y.sum(), y
+
+dummy_loss_fn(params, jnp.zeros(dims[0]))
+
+grad_loss_fn = jax.value_and_grad(dummy_loss_fn, has_aux=True)
+values, grads = grad_loss_fn(params, jnp.zeros(dims[0]))
+values, jax.tree_util.tree_structure(grads)
+===
+Out:
+((Array(0., dtype=float32),
+  Array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], dtype=float32)),
+ PyTreeDef([{'W': *, 'b': *}, {'W': *, 'b': *}]))
+```
+
+Like I mentioned earlier, Jax transforms are composable and can be applied
+together to generate complex behaviour. We've already seen an example of this by
+applying `jax.grad` twice to get the second derivative. Another example is
+combining `jax.jit` and `jax.grad` to produce a jit compiled autodiff function!
+
+At risk of becoming an "autodiff" section rather than a function transformation
+section, I should mention other transformations. A particularly famous one is
+`jax.vmap` which simply converts a function on a single input to one that can
+accept batches of inputs. 
+
+> Personally I haven't found much use for this as I am too used to writing
+batched code anyway. 
+
+A more powerful transformation is `jax.pmap` which converts a function into one
+that can be parallelised across
+**multiple accelerators**, usually in a single-program, multiple-data (data
+parallel) fashion. A big pull to using Jax is its inbuilt and easy support for
+parallelism using `pmap` and other "`p`" functions. This is a topic in of itself
+though, so I leave exploring this to future blogs. 
 
 ## Conclusion
