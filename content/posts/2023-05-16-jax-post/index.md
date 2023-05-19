@@ -49,7 +49,7 @@ draft: true
         - In general, it is possible to change dynamicly shaped inputs to something that is static such as through padding or masking. X
         - Discuss the pure functions, and how it isn't really pure at a Python level. (implicit arguments that are hidden) X
         - Demonstrate the (Python) branching and how only one is traced. X
-        - Jax conditionals, resulting in both branches being compiled.
+        - Jax conditionals, resulting in both branches being compiled. X
         - Similar for Python loops and how they get unrolled X
         - A real Jax loop, for example in a diffusion inference loop X
         - Which loop to use, trade off between compile time and optimisation potential X
@@ -293,6 +293,25 @@ immutable.
 Jax functions also only accept array inputs. This is contrast to NumPy that will
 happily accept Python lists. Jax chooses to do this to avoid silent degradation
 in performance by just erroring instead.
+
+One final difference is that out of bounds indexing does not raise an error. This is because raising an error from code running on an accelerator is difficult, and our goal with "accelerated NumpP" is to use accelerators. This is similar to how invalid floating point arithmetic can result in NaN values, rather than simply erroring.
+
+When indexing to retrieve a value, Jax will instead just clamp the index to the
+bounds of the array:
+```python
+x1[0], x1[-1], x1[10000]
+===
+Out: (Array(0, dtype=int32), Array(6, dtype=int32), Array(6, dtype=int32))
+```
+
+When indexing to update a value (such as by using the `.at` attribute) the
+update is simply ignored:
+```python
+x1 = x1.at[10000].set(999)
+x1
+===
+Out: Array([0, 2, 4, 6], dtype=int32)
+```
 
 That's kinda interesting, but I am not seeing a great deal of pull towards Jax over NumPy so far. It gets more concerning when we start timing the functions:
 ```python
@@ -1034,6 +1053,9 @@ Let's compiled our less stupid function `less_stupid_fn` and see if we get the
 same code out. Even with our fancy primitive functions, XLA should optimise the
 function in the same way.
 ```python
+print(jax.jit(less_stupid_fn).lower(x).compile().as_text())
+===
+Out:
 HloModule jit_less_stupid_fn, entry_computation_layout={(f32[2]{0})->f32[2]{0}}, allow_spmd_sharding_propagation_to_output={true}
 
 ENTRY %main.2 (Arg_0.1: f32[2]) -> f32[2] {
@@ -1081,6 +1103,82 @@ context to XLA. If the number of loop iterations is **small and constant** it
 may be worth using Python loops instead. For example, you may use a `fori_loop`
 to wrap your whole diffusion model during inference, but a regular loop
 training an unrolled model for only two, fixed steps.
+
+For conditionals in compiled functions, we have a lot of options available to us
+in Jax. I won't enumerate them all here, there is a nice summary in the Jax docs
+[here](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html#cond).
+The function closest to the behaviour of a regular if statement is `jax.lax.cond`:
+
+```python
+@jax.jit
+def cond_fn(x):
+  pred = jnp.abs(x.max() - x.min()) <= 1.0
+  return jax.lax.cond(pred, lambda x: x, lambda x: x / 2, x)
+
+print(cond_fn(jnp.array([0.1, 0.2])))
+print(cond_fn(jnp.array([-0.5, 0.5])))
+print(cond_fn(jnp.array([1.0, -1.0])))
+===
+Out: [0.1 0.2]
+[-0.5  0.5]
+[ 0.5 -0.5]
+```
+`jax.lax.cond` takes a single boolean value, two functions and the operands to
+the two functions. The first function will execute if `pred` is `True` and the
+second if `pred` is `False`. In the above function, we check the absolute difference between the minimum and maximum values of `x`. If they are less than or equal to `1.0` the array is returned unchanged, else the array gets halved.
+
+We can print the `jaxpr` and see that both branches do get traced:
+```python
+jax.make_jaxpr(cond_fn)(jnp.array([1.0, -1.0]))
+===
+Out:
+{ lambda ; a:f32[2]. let
+    b:f32[2] = pjit[
+      jaxpr={ lambda ; c:f32[2]. let
+          d:f32[] = reduce_max[axes=(0,)] c
+          e:f32[] = reduce_min[axes=(0,)] c
+          f:f32[] = sub d e
+          g:f32[] = abs f
+          h:bool[] = le g 1.0
+          i:i32[] = convert_element_type[new_dtype=int32 weak_type=False] h
+          j:f32[2] = cond[
+            branches=(
+              { lambda ; k:f32[2]. let l:f32[2] = div k 2.0 in (l,) }
+              { lambda ; m:f32[2]. let  in (m,) }
+            )
+            linear=(False,)
+          ] i c
+        in (j,) }
+      name=cond_fn
+    ] a
+  in (b,) }
+```
+
+The equivalent for `n` branches (rather than just the two with `jax.lax.cond`) is `jax.lax.switch`. With this, we can implement a highly performant `is_even` function!
+
+```python
+@jax.jit
+def is_even_fast(x):
+  return jax.lax.switch(x, [
+    lambda: True,
+    lambda: False,
+    lambda: True,
+    lambda: False,
+    lambda: True,
+    lambda: False,
+    lambda: True,
+    lambda: False,
+    lambda: True,
+    ... <truncated>
+    lambda: False
+  ])
+
+is_even_fast(123512)
+===
+Out: Array(True, dtype=bool)
+```
+
+> Do not look at the `jaxpr` of the above function.
 
 ## Briefly, PyTrees
 
