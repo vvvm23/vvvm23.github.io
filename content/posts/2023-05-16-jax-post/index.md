@@ -1228,7 +1228,7 @@ Out: Array(True, dtype=bool)
 You may have noticed that so far, all the functions we have compiled using
 `jax.jit` only take flat structures like single arrays or values as inputs. This
 poses a problem if we later want to use JAX for massive machine learning
-problems. Are we going to write one-by-one all the parameter matrices of GPT-3?
+problems. Are we going to write one-by-one all the parameter arrays of GPT-3?
 
 In reality, we can use arbitrary **PyTrees** as inputs, intermediates, and
 outputs to our jit compiled functions.
@@ -1244,10 +1244,10 @@ other PyTrees, forming a nested structure, and leaves.
 > this is outside the scope of this blog.
 
 When calling a jit function, JAX will check for an existing cached compiled
-function with the same PyTree structure, leaf shapes, and static argument
-values. If all this matches, the compiled function will be reused. Like keeping
-the array shapes the same in order to use cached functions as much as possible,
-you should aim to keep the PyTree structure the same.
+function with the **same PyTree structure, leaf shapes, and static argument
+values**. If all this matches, the compiled function will be reused. Like
+keeping the argument shapes the same as much as possible in order to use cached
+functions, you should aim to keep the PyTree structure the same.
 
 Let's have a concrete example, implementing the forward pass of a simple
 multi-layer perceptron. First, we will build a list of dictionaries. Each
@@ -1272,7 +1272,10 @@ Out:
 (PyTreeDef([{'W': *, 'b': *}, {'W': *, 'b': *}]),
 [{'W': '(64, 784)', 'b': '(64,)'}, {'W': '(10, 64)', 'b': '(10,)'}])
 ```
-The variable `params` fits the definition of a PyTree. The outputs of the cell are the structure of the PyTree and another PyTree showing the shape of the leaves of `params`. Let's define the forward pass as function that takes `params` and an array `x` as its inputs, and decorate it with `jax.jit`:
+The variable `params` fits the definition of a PyTree. The outputs of the cell
+are the structure of the PyTree and another PyTree showing the shapes of the
+leaves of `params`. Let's define the forward pass as function that takes the
+PyTree `params` and an array `x` as its inputs, and decorate it with `jax.jit`:
 ```python
 @jax.jit
 def feed_forward(params, x):
@@ -1290,7 +1293,7 @@ Array([-1.        , -0.93132854, -1.        , -0.99993926,  0.9998755 ,
 ```
 
 > If you've ever printed a PyTorch model `model.state_dict()` before, you should
-> be able to see how we can achieve something similar by solely using nested >
+> be able to see how we can achieve something similar by solely using nested
 > dictionaries. I just used a list in the above example to demonstrate how we can
 > nest arbitrary combinations of containers, so long as they are in the PyTree
 > registry. 
@@ -1302,24 +1305,25 @@ guess.
 
 ## Function Transformations
 It can't really be a JAX blog without mentioning function transformations. One
-of the first things you read on the Github page for JAX is "Dig [...] deeper,
-and you'll see that JAX is really an extensible system for composable function
-transformations". I've begun tinkering with this system myself but not enough to
-write in-depth on it, though I suspect it would mandate an entirely separate
-article just to do it justice. 
+of the first things you see on the Github repository for JAX is "Dig [...]
+deeper, and you'll see that JAX is really an extensible system for composable
+function transformations". I've begun tinkering with this system myself but not
+enough to write in-depth on it, though I suspect it would mandate an entirely
+separate post to do it justice. 
 
 > Just to give you a taste of what is possible, see [this
 > repository](https://github.com/davisyoshida/lorax) that lets you add LoRA to
-> arbitrary JAX functions.
+> arbitrary JAX functions!
 
-JAX comes with a number of inbuilt function transformations that must be
-mentioned. A function transformation is simply a function that takes another
-function, and returns yet another function. Hey, a function transformation
+A function transformation is simply a function that takes another function as
+input, and returns yet another function. Hey, a function transformation
 transforms functions.
 
-You've already met one in the form of `jax.jit`. Two others are the `jax.grad`
-and `jax.value_and_grad` transforms, that form the auto-differentiation part of
-JAX. Autodiff is an essential ingredient of training machine learning models.
+JAX comes with a number of inbuilt function transformations that must be
+mentioned.  You've already met one in the form of `jax.jit`. Two others are the
+`jax.grad` and `jax.value_and_grad` transforms, forming the auto-differentiation
+component of JAX. Autodiff is an essential ingredient for training machine
+learning models.
 
 In a nutshell, `jax.grad` takes in a function `f`, and returns another function
 that computes the derivative of `f`. `jax.value_and_grad` returns a function
@@ -1342,7 +1346,7 @@ Out:
 
 By default, the autodiff functions will take the gradient with respect to the
 first function argument, and hence the output of the new function `jax.grad(f)`
-will be of the same shape as the first argument of `f`:
+will be of **the same shape and structure as the first argument of `f`**:
 ```python
 def dummy_loss_fn(params, x):
     y = feed_forward(params, x)
@@ -1367,8 +1371,8 @@ specifying the `argnums` parameter to the index of the argument we want to
 differentiate with respect to. We can even specify multiple arguments by passing
 a sequence of integers.
 
-We can even apply `grad` to a function that already has had `grad` applied to
-it, obtaining the second derivative:
+We can even apply `grad` to a function that already computes the first
+derivative, obtaining a function that computes the second derivative:
 ```python
 def fn(x):
     return 2 * x**3
@@ -1381,6 +1385,9 @@ print(f"d0x: {fn(x)}, d1x: {grad_fn(x)}, d2x: {grad_grad_fn(x)}")
 ===
 Out: d0x: 2.0, d1x: 6.0, d2x: 12.0
 ```
+The above behaviour is very hard to achieve in other machine learning frameworks
+such as PyTorch or Tensorflow. But in Jax, thanks to its emphasis on function
+transformations, it is trivial to achieve.
 
 Sometimes, we want to compute the gradient of a function that also outputs
 auxilliary data. A common example is a loss function that also outputs other
@@ -1390,8 +1397,6 @@ calculations, which can be achieved by passing `has_aux=True` to `grad`. We do t
 def dummy_loss_fn(params, x):
     y = feed_forward(params, x)
     return y.sum(), y
-
-dummy_loss_fn(params, jnp.zeros(dims[0]))
 
 grad_loss_fn = jax.value_and_grad(dummy_loss_fn, has_aux=True)
 values, grads = grad_loss_fn(params, jnp.zeros(dims[0]))
@@ -1403,18 +1408,18 @@ Out:
  PyTreeDef([{'W': *, 'b': *}, {'W': *, 'b': *}]))
 ```
 
-Like I mentioned earlier, JAX transforms are composable and can be applied
-together to generate complex behaviour. We've already seen an example of this by
+Like I mentioned earlier, **JAX transforms are composable and can be combined
+together to generate complex behaviour**. We've already seen an example of this by
 applying `jax.grad` twice to get the second derivative. Another example is
 combining `jax.jit` and `jax.grad` to produce a jit compiled autodiff function!
 
 At risk of becoming an "autodiff" section rather than a function transformation
 section, I should mention other transformations. A particularly famous one is
 `jax.vmap` which simply converts a function on a single input to one that can
-accept batches of inputs. 
+accept batches of inputs.
 
 > Personally I haven't found much use for this as I am too used to writing
-batched code anyway. 
+batched code anyway. But your mileage may vary.
 
 A more powerful transformation is `jax.pmap` which converts a function into one
 that can be parallelised across
