@@ -273,13 +273,19 @@ JAX over NumPy. It gets more concerning when we start timing the functions:
 ```python
 x1_np, x2_np = np.asarray(x1), np.asarray(x2)
 %timeit x1_np @ x2_np
-%timeit x1 @ x2
+%timeit (x1 @ x2).block_until_ready()
 ===
 Out: 1.17 µs ± 6.3 ns per loop (mean ± std. dev. of 7 runs, 1000000 loops each)
 7.27 µs ± 1.68 µs per loop (mean ± std. dev. of 7 runs, 100000 loops each)
 ```
 The JAX version of the above multiplication is about 6-7 times slower, what
 gives?
+
+> The `block_until_ready` function is needed for benchmarking. Normally, JAX
+> does not wait for the operation to complete before returning control to
+> Python. It asynchronously dispatches to the accelerator. Hence, the time to
+> return may be faster than the actual computation time, resulting in an
+> inaccurate benchmark.
 
 It goes back to the point that NumPy is intended for array manipulation in an
 op-by-op (or eager) fashion, whereas JAX is all about defining graphs and
@@ -321,14 +327,14 @@ b = jax.random.uniform(b_key, (2,))
 x = jax.random.normal(x_key, (4,))
 
 print("`fn` time")
-%timeit fn(W, b, x)
+%timeit fn(W, b, x).block_until_ready()
 
 print("`jax.jit(fn)` first call time")
 jit_fn = jax.jit(fn)
-%time jit_fn(W, b, x)
+%time jit_fn(W, b, x).block_until_ready()
 
 print("`jit_fn` time")
-%timeit jit_fn(W, b, x)
+%timeit jit_fn(W, b, x).block_until_ready()
 ===
 Out: 
 `fn` time
@@ -389,26 +395,24 @@ def stupid_fn(x):
   return y
 
 print("`stupid_fn` time")
-%time stupid_fn(x)
+%time stupid_fn(x).block_until_ready()
 
 print("`jit_stupid_fn` first call")
 jit_stupid_fn = jax.jit(stupid_fn)
-%time jit_stupid_fn(x)
+%time jit_stupid_fn(x).block_until_ready()
 
 print("`jit_stupid_fn` time")
-%timeit jit_stupid_fn(x)
+%timeit jit_stupid_fn(x).block_until_ready()
 ===
 Out: 
 `stupid_fn` time
-CPU times: user 17.2 ms, sys: 0 ns, total: 17.2 ms
-Wall time: 17.6 ms
-
+CPU times: user 58.6 ms, sys: 1.06 ms, total: 59.7 ms
+Wall time: 81.9 ms
 `jit_stupid_fn` first call
-CPU times: user 1.03 s, sys: 5.79 ms, total: 1.04 s
-Wall time: 1.09 s
-
+CPU times: user 666 ms, sys: 13.9 ms, total: 680 ms
+Wall time: 800 ms
 `jit_stupid_fn` time
-5.6 µs ± 1.67 µs per loop (mean ± std. dev. of 7 runs, 100000 loops each)
+8.72 µs ± 735 ns per loop (mean ± std. dev. of 7 runs, 100000 loops each)
 ```
 
 In the function, it copies the input `x` to the variable `y`, then multiplies the
@@ -698,16 +702,16 @@ def random_shape_test(fn):
   return fn(jnp.empty((length,)))
 
 print("random length eager time:")
-%timeit -n1000 random_shape_test(cube)
+%timeit -n1000 random_shape_test(cube).block_until_ready()
 
 jit_cube = jax.jit(cube)
 jit_cube(x1)
 
 print("fixed length compiled time:")
-%timeit -n1000 jit_cube(x1)
+%timeit -n1000 jit_cube(x1).block_until_ready()
 
 print("random length compiled time:")
-%timeit -n1000 random_shape_test(jit_cube)
+%timeit -n1000 random_shape_test(jit_cube).block_until_ready()
 ===
 Out:
 random length eager time:
