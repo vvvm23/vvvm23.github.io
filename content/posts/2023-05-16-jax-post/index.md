@@ -19,7 +19,8 @@ text-conditioned generation. With this new model, we would train a new
 text-to-image model from scratch, à la
 [Dalle-mini](https://github.com/borisdayma/dalle-mini).
 
-%%Add unconditional results from paper%%
+![Unconditional results from my original paper](img/unconditional.jpg)
+> Unconditional results from my original paper
 
 > Interestingly, Dalle-mini was born out of a previous Huggingface community
 sprint. A lot of nice projects can come out of these community initiatives!
@@ -31,7 +32,11 @@ despite the team's best efforts. You can find the JAX code for our project
 [here](https://github.com/vvvm23/diffusers-sprint-sundae). Despite disappointing
 results, I am still happy I took part as I learned a huge amount.
 
-%%Show model convergence%%
+![Convergence of the text-conditioned model](img/convergence.png)
+> Convergence of our text-to-image model. It plateaus quite early.
+
+![Really "great" samples](img/sample.png)
+> Really "great" samples
 
 I jumped into JAX by following [an excellent tutorial
 series](https://github.com/gordicaleksa/get-started-with-JAX) by [Aleksa
@@ -40,8 +45,6 @@ he is also just learning JAX. No doubt he is even better now, but I still felt
 quite inspired by this attitude: sharing and teaching as you yourself learn.
 Hence, I decided that following the sprint I would channel this spirit and
 share what I know. And hence, here we are.
-
-%%Screenshot to twitter thing%%
 
 Although it is possible to implement everything in JAX alone – including
 manually implementing the optimiser and model – this isn't really an approach I
@@ -72,6 +75,8 @@ more experience.
 Without further ado..
 
 ## Basic Usage is *Almost* Like NumPy
+
+![JAX Logo](img/jax_logo.png)
 
 JAX is a framework developed by Google and later open-sourced for
 high-performance machine learning research and numerical computing. Some people
