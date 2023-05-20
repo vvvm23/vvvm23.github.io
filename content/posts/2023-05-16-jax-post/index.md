@@ -352,25 +352,26 @@ like NumPy, we leave no room for optimisation and due to extra JAX overhead
 dispatching operations, we get a slower function. Bluntly, if you are using JAX
 like this, you have done something wrong.
 
-So, how do we get JAX to go fast? By making use of XLA.
+So, how do we get JAX to go fast? By harnessing the power of XLA.
 
 ## Enter `jax.jit`
 
-The reason why the earlier functions were so slow is that JAX is dispatching to
+The reason why the earlier function was so slow is that JAX is dispatching to
 the accelerator one operation at a time. The intended way to use JAX is to
 compile multiple operations – ideally nearly all operations – together using
 XLA. To indicate which region to compile together, we can pass the function we
-want to compile to `jax.jit` or use the `@jax.jit` decorator. The function will
-not be compiled immediately, but rather upon first call – hence the name "Just
-in time compilation".
+want to compile to the function `jax.jit` or use the `@jax.jit` decorator. The
+function will not be compiled immediately, but rather upon first call – hence
+the name "Just in time compilation".
 
 During this first call, the shapes of the input arrays will be used to trace out
 a computational graph, stepping through the function with the Python interpreter
-and executing all operations one-by-one, recording what happens as we go. This
-intermediate representation can be given to XLA and subsequently compiled,
+and executing the operations one-by-one, recording in the graph what happens.
+This intermediate representation can be given to XLA and subsequently compiled,
 optimised, and cached. This cache will be retrieved if the same function is
 called with the same input array shapes and dtype, skipping the tracing and
-compilation process, calling the compiled binary blob directly.
+compilation process and calling the heavily optimised, precompiled binary blob
+directly.
 
 Let's see it in action:
 
@@ -407,11 +408,11 @@ Wall time: 36.3 ms
 
 Like expected, the first call will take much longer than the subsequent calls.
 It is important to exclude the first call from any benchmarking for this reason.
-Also as expected, we see that even for this simple example the compiled version
-of the function executes far quicker than the op-by-op function.
+We also see that even for this simple example the compiled version of the
+function executes far quicker than the original function.
 
-It is possible to view the traced graph as a `jaxpr` using `jax.make_jaxpr` on
-an input function. Though, somewhat hard to read once the functions grow more complex.
+We can view the traced graph as a `jaxpr` by calling `jax.make_jaxpr` on the
+function:
 ```python
 jax.make_jaxpr(fn)(params, x)
 ===
@@ -421,7 +422,7 @@ Out: { lambda ; a:f32[4,2] b:f32[2] c:f32[4]. let
   in (e,) }
 ```
 
-And also the compiled version of the function, which is even more difficult to read.
+And also the compiled version of the function, albeit hard to read:
 ```python
 print(jax.jit(fn).lower(params, x).compile().as_text())
 ===
@@ -474,14 +475,16 @@ Wall time: 1.09 s
 5.6 µs ± 1.67 µs per loop (mean ± std. dev. of 7 runs, 100000 loops each)
 ```
 
-In the function, we copy the input to variably `y`, then multiply the input with
-itself 1,000 times. Finally, we simply return `y`, making the multiplications
-totally pointless. In the non-jit version, the program will happily and
-pointlessly perform the multiplication. Ignorance is bliss. On first call to the
-jit function, again we will step through all the multiplications as JAX traces
-out the computational graph. However, the compiled version used on subsequent
-calls will be blazing fast, as XLA sees the multiplications are not needed to
-obtain the final output. We can actually see this by printing the `jaxpr`:
+In the function, it copies the input `x` to the variable `y`, then multiplies the
+input with itself 1,000 times. Finally, it simply returns `y`, making the
+multiplications totally pointless. In the non-jit version, the program will
+happily and pointlessly perform the multiplications. Ignorance is bliss. 
+
+On first call to the jit function, again JAX will step through all the
+multiplications as it traces out the computational graph. However, the compiled
+version used on subsequent calls will be blazing fast, as XLA sees the
+multiplications are not needed to obtain the final output and optimises them
+out. We can actually see this by printing the `jaxpr`:
 ```python
 jax.make_jaxpr(stupid_fn)(x)
 ===
@@ -501,7 +504,8 @@ Out: { lambda ; a:f32[4]. let
     _:f32[4] = mul bmm bmm
   in (b,) }
 ```
-Which shows all 1,000 multiplications, and comparing it with the compiled version:
+Which shows all 1,000 multiplications (trust me!), and comparing it with the
+compiled version:
 ```python
 print(jax.jit(stupid_fn).lower(x).compile().as_text())
 ===
@@ -513,48 +517,48 @@ ENTRY %main.2 (Arg_0.1: f32[4]) -> f32[4] {
   ROOT %copy = f32[4]{0} copy(f32[4]{0} %Arg_0.1)
 }
 ```
-Which only contains a single copy operation. Experiment with the above code
+Which contains only a single copy operation. Experiment with the above code
 blocks yourself by changing the number of iterations in the loop. You will find
 that the time to execute the original function will increase with number of
-iterations. Additionally, the time to trace the graph on first call to the jit
-function will also increase, as this happens using the Python interpreter.
-However, the time to execute the compiled version on subsequent calls will not
-increase in a meaningful way.
+iterations, along with the time to trace the graph on first call to the jit
+function. However, the time to execute the compiled version on subsequent calls
+will not increase in a meaningful way.
 
 The above is a contrived example, but demonstrates a critical point: **we can
 let XLA do a lot of the heavy lifting for us optimisation-wise.** This is
-different to other frameworks that execute eagerly, where the above code would
-happily execute extremely pointlessly. This isn't really a fault of the
-framework as eager execution has a ton of other benefits, but demonstrates the
+different to other frameworks that execute eagerly, where it would
+happily execute extremely pointless code. This isn't a fault of the
+framework as eager execution has many benefits, but demonstrates the
 point that compiling our functions using XLA can help optimise our code in ways
-we didn't know about, or could reasonably anticipate. What exact optimisations
-XLA applies is a topic outside the scope of this blog, however one example is
-that the earlier statement about JAX arrays not allowing in-place operations
-results in no potential performance loss. This is because XLA can identify cases
-where it can replace operations with in-place equivalents. So basically, don't
-sweat it if you were worried earlier about not being able to do stuff in-place.
+we didn't know about, or could reasonably anticipate. 
 
-Secondly, in order to let XLA do the best job it can, **`jax.jit` needs to be
-used in the widest possible context**. For example, (again contrived) if we had
-only jit compiled the multiplication, XLA would be unaware that the outermost
-loop was unnecessary and could not optimise it out – it is simply outside the
-region to be compiled. A concrete machine learning example would be wrapping the
-entire training step – forward, backwards and optimiser step – in `jax.jit`.
+What exact optimisations XLA applies is a topic outside the scope of this blog.
+One quick example is that the earlier statement about JAX arrays not allowing
+in-place operations results in no potential performance loss. This is because
+XLA can identify cases where it can replace operations with in-place
+equivalents. So basically don't sweat it if you were worried earlier about not
+being able to do operations in-place!
 
-It turns out most machine learning applications can be expressed in this way:
-one monolithic compiled function that we throw data and model parameters at. In
-the original JAX paper, they say "The design of JAX is informed by the
-observation that ML work- loads are typically dominated by PSC
-(pure-and-statically-composed) subroutines" which lends itself well to this
-compilation process. Even functions that are seemingly not static can be
-converted into a static form, for example padding sequences in language modeling
-tasks or rewriting our functions in clever ways.
+Secondly, in order to let XLA be the best it can be, **`jax.jit` should be used
+in the widest possible context**. For example, (again contrived) if we had only
+jit compiled the multiplications in `stupid_fn`, XLA would be unaware that the
+outermost loop was unnecessary and could not optimise it out – it is simply
+outside the region to be compiled. A concrete machine learning example would be
+wrapping the entire training step – forward, backwards and optimiser step – in
+`jax.jit` for maximum effect.
+
+Most machine learning applications can be expressed in this way: one monolithic
+compiled function that we throw data and model parameters at. It just might take
+some massaging. In the original JAX paper, they say "The design of JAX is
+informed by the observation that ML workloads are typically dominated by **PSC
+(pure-and-statically-composed) subroutines**" which lends itself well to this
+compilation process. Even functions that seemingly cannot have static input
+shapes can be converted into a static form, for example padding sequences in
+language modeling tasks or rewriting our functions in clever ways.
 
 Although eager mode execution is very useful for development work, once
 development is done there is less benefit to eager execution over heavily
-optimised binary blobs, hungry for our data. However, such optimisation relies
-on said pureness and staticness, which must be enforced in order to jit-compile
-our functions. 
+optimised binary blobs, hungry for our data. However, said compilation and optimisations rely on following the rules of JAX.
 
 ## Jit needs static shapes
 
