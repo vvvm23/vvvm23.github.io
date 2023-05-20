@@ -556,13 +556,13 @@ compilation process. Even functions that seemingly cannot have static input
 shapes can be converted into a static form, for example padding sequences in
 language modeling tasks or rewriting our functions in clever ways.
 
-Although eager mode execution is very useful for development work, once
+Although eager mode execution is useful for development work, once
 development is done there is less benefit to eager execution over heavily
 optimised binary blobs, hungry for our data. However, said compilation and optimisations rely on following the rules of JAX.
 
 ## Jit needs static shapes
 
-The biggest blocker to jit compiling functions is that **all arrays to have
+The biggest blocker to jit compiling functions is that **all arrays need to have
 static shapes**. That is to say, given the **shapes** and shapes alone of the
 function inputs, it should be possible to determine the shape of all other
 variables in the traced graph at compile time.
@@ -607,16 +607,18 @@ If using `jit`, try using `static_argnums` or applying `jit` to smaller subfunct
 The error occurred while tracing the function create_filled at <ipython-input-13-0ecd13642388>:1 for jit. This concrete value was not available in Python because it depends on the value of the argument length.
 ```
 
-In eager execution, the function returns what we expected. However, when tracing
-the jit version of the function we encounter an error. This is because when
-tracing the `jnp.ones` function will receive only a traced, zero-dimensional
-array which only contains information about the shape and dtype. It is therefore
-impossible to trace the output array as the shape is not known at compile time.
+In eager execution, the function returns what we expect. However, when tracing
+the jit version of the function an error appears. This is because when tracing,
+the `jnp.full` function will receive a tracer array which only contains
+information about the shape and dtype – not the value which is used to determine
+the shape. It is therefore impossible to trace the output array as the shape is
+not known at compile time.
 
-We can resolve this issue by using an extra argument in `jax.jit` named
-`static_argnums. This specifies which arguments to **not** trace and just treat
-it as a regular Python value at compile time. In the `jaxpr` graph, the `length`
-argument to our Python-level function essentially becomes a constant in the graph:
+We can resolve this by using an argument to `jax.jit` named
+`static_argnums`. This specifies which arguments to **not** trace, simply
+treating it as a regular Python value at compile time. In the `jaxpr` graph, the
+`length` argument to our Python-level function essentially becomes a constant in
+the graph:
 ```python
 jit_create_filled = jax.jit(create_filled, static_argnums=(1,))
 print(jit_create_filled(2, 5))
@@ -637,13 +639,13 @@ Out: [2 2 2 2 2]
 ```
 
 As the shape is a constant in the graph now, each time a different `length` is
-passed to the function the function will need to be recompiled. Hence, this
-approach only really works if the number of values `length` will take is very
-limited, otherwise we will be constantly compiling different graphs.
+passed to the function it will be recompiled. Hence, this approach only really
+works if the number of possible values for `length` is very limited, otherwise
+we will be constantly compiling different graphs.
 
-Make no mistake, even though the Python-level function is identical, the
-underlying binaries that are called for different inputs are completely
-different. We've basically turned the caching from matching on function and
+Make no mistake, even though the Python-level function is identical, **the
+underlying binaries that are called for different static inputs are completely
+different**. We've basically turned the caching from matching on function and
 input shapes, to matching on function, input shapes, and also the **value** of
 our static arguments.
 
@@ -699,16 +701,16 @@ NonConcreteBooleanIndexError: Array boolean indices must be concrete; got Shaped
 
 Executing the function in eager mode works as expected. However, the shape of
 intermediate variables cannot be known given knowledge of the input shapes
-alone, but rather depends on the number of elements in `mask` that are `True`.
+alone, as it depends on the number of elements in `mask` that are `True`.
 Therefore, we cannot compile the function as not all shapes are static.
 
-Additionally, we can't simply use `static_argnum` as `mask` itself is not
-hashable and hence can't be used to match calls to caches. Furthermore, even if
-it could the number of possible values of `mask` is too high. To handle all
+Additionally, we can't use `static_argnum` as `mask` itself is not hashable and
+hence can't be used to match calls to cached binaries. Furthermore, even if we
+could, the number of possible values of `mask` is too high. To handle all
 possibiltiies, we would need to compile `2**16` or 65,536 graphs.
 
 Often though, we can rewrite the function to perform the same action and with
-static shapes:
+known shapes at all steps:
 
 ```python
 def mask_tensor(x, mask):
@@ -747,7 +749,7 @@ determined at compile time but the shapes of the inputs change a lot. As we
 retrieve cached compiled functions by looking at which function was called and
 the shape of the inputs, this will result in a lot of compiling. This makes
 sense, as the graph itself is optimised for a specific static shape, but will
-result in silent slowdowns.
+result in silent slowdowns:
 
 ```python
 import random
@@ -834,17 +836,19 @@ Out:
 The eager mode calls (the first three) represent our ground truth, the last
 three are outputs of the jit function using the same inputs and global `shift
 value`. In the jit function, the first call of a given shape (when we trace)
-will use the correct current global shift value. If we call again and JAX finds
-a cached function, it won't look at the new global shift but rather just
-execute the compiled code directly - the one that has baked in the old value in
-the graph as a constant. However, if tracing is triggered again (such as with a
-different input shape) the correct `shift` will be used.
+will use the correct current global shift value. This is because tracing
+utilises the Python interpreter and so can see the correct global value.
 
-This is what they mean by "JAX transformations and compilation are **designed**
-to only work on pure functions". They can still be applied to impure but the
-behaviour of the function will diverge from the Python interpreter when tracing
-is skipped and the compiled function is used directly. Another example is one
-that involves a `print` function:
+If we call again and JAX finds a cached function, it won't look at the new
+global shift but instead execute the compiled code directly, which has the old
+value baked into the graph as a constant. However, if tracing is triggered again
+(such as with a different input shape) the correct `shift` will be used.
+
+This is what is meant by "JAX transformations and compilation are **designed**
+to only work on pure functions". They can still be applied to the impure, but
+the behaviour of the function will diverge from the Python interpreter when
+tracing is skipped and the compiled function is used directly. Another example
+is about functions that use `print` functions:
 ```python
 def fn(x):
   print("called identity function")
@@ -892,21 +896,22 @@ print(jit_fn(x))
 ```
 Again, as the input shape of `x` hasn't changed, the compiled version will be
 used, hence the value of `b` in the function won't be updated. However, `b` is
-actually a variable in the graph, unlike our previous example modifying
-`shift`. JAX maintains functional purity in the compiled function by adding `b`
-as an **implicit argument** in the traced graph. Hence, the graph is
-functionally pure, however `b` is essentially a constant for us as we have no
-way of modifying this implicit argument at a Python-level without recompiling.
+actually a variable in the graph, unlike our previous example modifying `shift`
+where it is a constant in the graph. JAX maintains functional purity in the
+compiled function by adding `b` as an **implicit argument** in the traced graph.
+Hence, the graph is functionally pure, however `b` is essentially a constant for
+us as we have no way of modifying this implicit argument at a Python-level
+without recompiling.
 
 Generally speaking, the **final compiled function** is pure. However, the
-Python-level function we created isn't necessarily pure, and `jax.jit` can
-still be applied, but needs care. I would summarise the caveats as follows
+Python-level function we created isn't necessarily pure. Despite this, `jax.jit`
+can still be applied but requires care. I would summarise the caveats as follows
 though:
-- Code that does not manipulate JAX arrays will not be traced and only called
-  during tracing itself (as the Python interpreter steps through the function,
-  and evaluates the code like any other Python code). Examples of this include
-  `print` statements and setting Python level variables, as well as
-  Python-level conditionals and loops.
+- Code that does not manipulate JAX arrays will not be traced and is only called
+during tracing itself (as the Python interpreter steps through the function, and
+evaluates the code like any other Python code). Examples of this include `print`
+statements and setting Python level variables, as well as Python-level
+conditionals and loops.
 - Code that does manipulate JAX arrays **but** the JAX array is not an argument
   to the Python function (perhaps it is global, relative to the function) we
   are jit compiling will be traced, but those variables in the graph will take
@@ -914,9 +919,9 @@ though:
   the traced graph.
 
 I feel both of these impure cases still have value. For example, the first is
-nice when debugging shape issues (the first call will still print the shapes!)
-or perhaps disabling parts of the function using some global configuration
-object:
+nice when debugging shape issues (such as debugging shape mismatches during
+tracing) or perhaps disabling parts of the function using some global
+configuration object:
 ```python
 config = dict(relu=False)
 
@@ -951,7 +956,7 @@ there is no branching in the final graph.
 > object won't change, I feel the above pattern is fine!
 
 > It is possible to add conditionals in the compiled function. However,
-> Python-level conditionals are only used when tracing. Special functions
+> Python-level conditionals are only used when tracing. The branch that is traversed will be unrolled in the traced graph. Special functions
 > (shown later) must be used to add conditionals in the final compiled
 > function.
 
@@ -972,9 +977,10 @@ the same input shape.
 
 In general, I feel the emphasis on making things functionally pure is a bit
 overstated in JAX. In my (perhaps misinformed) opinion, it is better to simply
-understand the difference of trace-time and compiled behaviour, and when they
-will be triggered. Python is ridiculously expressive, and making use of that is
-part of the power of JAX, so it would be a shame to needlessly restrict that.
+understand the differences between trace-time and compiled behaviour, and when
+they will be triggered. Python is ridiculously expressive and making use of
+that is part of the power of JAX, so it would be a shame to needlessly restrict
+that.
 
 ## Conditionals and Loops in Compiled Functions
 
@@ -993,13 +999,13 @@ between trace-time and compiled behaviour. But if not, here is a summary:
 This behaviour is powerful, as it allows us to define what we want to happen in
 expressive Python, and rely on fast, optimised code for the actual execution.
 However, it does come with some issues:
-- We can only trace one conditional path per input shapes and static value
-  combination.
+- We can only trace one conditional path per combination of input shapes and
+static values.
 - As tracing steps through op-by-op, loops will simply be unrolled, rather than
   being loops in the final compiled function.
 
 Sometimes these properties are attractive. The first can be used to simply
-disable branches we don't care about, almost like compile time flags in C. The
+disable branches we don't care about – almost like compile time flags in C. The
 second is useful for small numbers of loop iterations where cross-iteration
 dependencies can be optimised. However, sometimes this works against us.
 
@@ -1030,11 +1036,11 @@ Out: { lambda ; a:f32[4]. let
     _:f32[4] = mul bmm bmm
   in (b,) }
 ```
-I truncated this earlier, but it is egregiously long in terminal. During
-tracing the entire loop gets unrolled. Not only is this annoying to look at,
-but it makes optimising the graph take a long time, which makes the first call
-to the function so long. JAX isn't aware we are in a for-loop context, it
-simply just takes the operations and adds it to the graph.
+The output is egregiously long. During tracing the entire loop gets unrolled.
+Not only is this annoying to look at, but it makes optimising the graph take a
+long time, making the first call to the function lengthy to complete. **JAX isn't
+aware we are in a for-loop context**, it simply just takes the operations as they
+come and adds it to the graph.
 
 Luckily, JAX exposes control flow primitives as part of its `jax.lax`
 submodule:
@@ -1043,6 +1049,7 @@ def less_stupid_fn(x):
     y = jnp.copy(x)
     x = jax.lax.fori_loop(start=0, stop=1000, body_fun=lambda i, x: x * x, init_val=x)
     return y
+
 jax.make_jaxpr(less_stupid_fn)(jnp.array([1.1, -1.1]))
 ===
 Out:
@@ -1065,19 +1072,19 @@ Out:
 In the above example, we convert our Python for-loop into `jax.lax.fori_loop`.
 This takes arguments for the (integer) start and end of the for loop range, as
 well as the function to execute in the body and the starting input value. The
-return value of `body_fun` must be the same type as `init_val` and the same
-across all iterations. In addition, the input the `body_fun` also takes the
-current loop index.
+return value of `body_fun` must be the same type and shape as `init_val` and the
+same type and shape across all iterations. In addition, the input to `body_fun`
+also takes the current loop index.
 
-Taking a look at the `jaxpr`, we can see the massive unrolling of operations
-has been replaced with a much more compact version, using the `scan` primitive.
+Taking a look at the `jaxpr`, we can see the massive unrolling of operations has
+been replaced with a much more compact version, using the `scan` primitive.
 This essentially executes the `body_fun` and fixed number of times, carrying
-state from one iteration to the next. `scan` compiles `body_fun` and hence
-needs a fixed input shape.
+state from one iteration to the next. `scan` compiles `body_fun` (like `jax.jit`
+does) and hence needs a fixed input and output shape.
 
 > If the number of loops was not static, then we would see a while loop
-> primitive instead! There is no primitive of for loop, it is just implemented
-> in terms of `scan` or a while loop. 
+primitive instead! There is no for-loop primitive, it is just implemented in
+terms of `scan` or `while`.
 
 Let's compiled our less stupid function `less_stupid_fn` and see if we get the
 same code out. Even with our fancy primitive functions, XLA should optimise the
@@ -1127,12 +1134,14 @@ Where `body_fun` will continue to be executed so long as `cond_fun` returns
 
 These loops aren't as pretty as Python-level equivalents, but they get the job
 done. Remember that it isn't possible to do cross-iteration optimisation with
-these loop primitives, as the `body_fun` gets compiled as its own unit. The
-same rules apply, try and make `body_fun` as large as possible to give most
-context to XLA. If the number of loop iterations is **small and constant** it
-may be worth using Python loops instead. For example, you may use a `fori_loop`
-to wrap your whole diffusion model during inference, but a regular loop
-training an unrolled model for only two, fixed steps.
+these loop primitives as `body_fun` gets compiled as its own unit. The same
+rules apply as with `jax.jit`: make `body_fun` as large as possible to
+give maximum context to XLA.
+
+If the number of loop iterations is **small and constant** it may be worth using
+Python loops instead. For example, you may use a `fori_loop` to wrap your whole
+diffusion model during inference, but a regular loop training an unrolled model
+for only two, fixed steps.
 
 For conditionals in compiled functions, we have a lot of options available to us
 in JAX. I won't enumerate them all here, there is a nice summary in the JAX docs
@@ -1154,8 +1163,11 @@ Out: [0.1 0.2]
 [ 0.5 -0.5]
 ```
 `jax.lax.cond` takes a single boolean value, two functions and the operands to
-the two functions. The first function will execute if `pred` is `True` and the
-second if `pred` is `False`. In the above function, we check the absolute difference between the minimum and maximum values of `x`. If they are less than or equal to `1.0` the array is returned unchanged, else the array gets halved.
+the functions. The first function will execute using `operands` if `pred` is
+`True` and the second if `pred` is `False`. In the above function, we check the
+absolute difference between the minimum and maximum values of `x`. If they are
+less than or equal to `1.0` the array is returned unchanged, else the array gets
+halved.
 
 We can print the `jaxpr` and see that both branches do get traced:
 ```python
@@ -1184,7 +1196,9 @@ Out:
   in (b,) }
 ```
 
-The equivalent for `n` branches (rather than just the two with `jax.lax.cond`) is `jax.lax.switch`. With this, we can implement a highly performant `is_even` function!
+The equivalent for `n` branches (rather than just the implied two with
+`jax.lax.cond`) is `jax.lax.switch`. With this, we can implement a highly
+performant `is_even` function!
 
 ```python
 @jax.jit
