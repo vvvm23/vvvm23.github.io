@@ -1,76 +1,7 @@
 ---
-title: "2023 05 16 JAX Post"
+title: "Jax Post"
 date: 2023-05-16T08:41:00+01:00
 draft: true
----
-
-> The Plan is Simple:
-- Introduction
-    - The sprint, what it was, how it got me into JAX X
-    - Inspired by tutorial series to share my own knowledge X
-    - The goal of this post
-        - Avoid discussing all possibilities here. X
-        - No creating everything from scratch - other things already cover this (point to them) X
-        - Aiming to have some unique takes and explanations, which may involve diving into some fundamental areas (contradicting previous two points but I hope it is valuable) X
-
-- JAX Discussion
-    - Basic usage of JAX looks a lot like numpy.
-        - Show jnp interface X
-        - First exception is randomness X
-        - Demonstrate that JAX shouldn't really be used exactly like numpy by a speed comparison. X
-
-    - How should we use it? (maybe step by step with code)
-        - Simply show what you want to happen in expressive Python. X
-        - Wrap it in a `jax.jit` decorator to indicate you want this region to be compiled. X
-        - Let the (python) interpreter execute your function op by op (slowly). X
-        - This will trace out a computational graph which can be viewed using `jax.make_jaxpr`. Note, this is the raw trace and is not optimised. X
-        - Pass the traced graph to XLA, where it can be (aggressively) optimised and compiled. Useless ops will be dropped. X
-        - Next time the function is called, instead of tracing again, the optimised compiled binary blob will be fetched and executed (very fast). X
-        - This is fantastic if your program is basically running the same function over and over again. Such as in a DL training loop where we just pass different data to the train step. X
-
-    - Caveats
-        - Should try and jit in the widest possible region to give the most context to the compiler: ideally the entire train step including model forward, model backward passes, and optimser updates. X
-        - Tracing (by default) uses the **shape** of the input to trace and compile. Hence, changing the shape of the input to the same function will cause the trace and compile stages to happen again. We should aim to keep the input shape the same, or at least limited to a small set of possibilities. X
-        - In the `jax.jit` regions Python (non-JAX) code will only be executed during tracing and not included in the compiled version. This has a lot of implications, such as conditionals, loops, prints, etc. (expand later) X
-
-    - Differences between numpy and jax
-        - I feel calling JAX "accelerated numpy" is not giving JAX enough credit. The way of using them is totally different. X
-        - JAX is slow to dispatch to the accelerator which makes op-by-op (eager) execution much slower than running Numpy on CPU – even with access to crazy fast hardware. This makes this style of execution in JAX untenable apart from debugging. X
-        - As numpy is intended to be used op-by-op, there is no room for optimisation by the compiler. Hence, the burden on the developer to write performant code and call the fast, heavily optimised, vectorised numpy functions as much as possible, over working at a Python level, which can be orders of magnitude slower. X
-        - Although of course the developer should think about performance when writing JAX, the burden is reduced by XLA. We are much more free to just write what we want to happen, and rely on XLA to optimise the hell out of everything. X
-        - Stupid loop example? X
-        - The above reminds me a bit of programming in Rust, where the developer works with the strict but knowledgeable compiler – kinda like a very serious tango partner. JAX has worse error messages as it stands though X
-
-    - Finished my ideological rant, to summarise: **for the final application we want to only run jax ops in jitted regions, where the jitted region is as large as possible, with fixed input shapes. We define what we want to happen which is transformed into a computational graph, and rely on XLA to optimise and compile it.**
-
-    - As jitting functions is such a key concept, it is worth diving deeper into what can and can't be jitted, and how to turn tricky functions into something that can be jitted.
-        - Shape errors also extend to shapes inside the graph (not just inputs). For example. Show "function with argument-value dependent shapes" example https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html X
-        - In general, it is possible to change dynamicly shaped inputs to something that is static such as through padding or masking. X
-        - Discuss the pure functions, and how it isn't really pure at a Python level. (implicit arguments that are hidden) X
-        - Demonstrate the (Python) branching and how only one is traced. X
-        - JAX conditionals, resulting in both branches being compiled. X
-        - Similar for Python loops and how they get unrolled X
-        - A real JAX loop, for example in a diffusion inference loop X
-        - Which loop to use, trade off between compile time and optimisation potential X
-        - No in place updates (but XLA may so don't worry about performance, just in place at a Python level makes analysis and transformation difficult) X
-            - See table https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html#jax.numpy.ndarray.at
-        - All jax ops must have array inputs (unlike numpy) to avoid degradation in performance. X
-        - However, this doesn't mean the arguments to the jitted function can't be something other than arrays. In fact, they can be any arbitrary PyTree. I won't dive deep into PyTrees here, but here simply treat a PyTree as a nested Python container with arrays at the leaves. This is useful for neural network parameters which lend themselves to be a nested dictionary. Same restrictions apply to shape though: the structure of the nesting and the shape of the array leaves must be the same in order to cache correctly. X
-
-    - Another key concept in JAX is the ability to transform functions into other functions. JAX comes with a few inbuilt ones that you will find useful, especially the "A" in JAX which comes from its suite of Autodiff function transformations.
-        - It is even possible to write your own custom function transforms, which I will discuss in a later post in this series. X
-        - Discuss the autodiff suite of functions
-            - `grad` and `value_and_grad` X
-            - second derivatives by simply nesting X
-            - aux values and such X
-        - Touch on `vmap` X
-            - But I haven't personally found much use for it as I am too used to writing code for batches anyway. X
-        - Mention `pmap` and other `p` functions! But I'll touch on those in a later post. X
-            - JAX has pretty excellent support for parallelism which is one of its strengths X
-
-- Conclusion
-    - I would argue that JAX isn't really accelerated numpy as how you use them is totally different. Expand here to solidify the central point.
-
 ---
 
 Recently, I took part in the [Huggingface x Google Cloud community
@@ -1429,3 +1360,30 @@ parallelism using `pmap` and other "`p`" functions. This is a topic in of itself
 though, so I leave exploring this to future blogs. 
 
 ## Conclusion
+In this lengthy post, I've introduced JAX and drilled deep into some key
+concepts within it, as well as share some highly opinionated takes. I've yet
+demonstrate a full machine learning training loop in JAX but I will cover this
+using high level libraries like Flax and Optax in later posts.
+
+If I was to summarise the takeaways from this post, they would be:
+- `jax.jit` is very powerful and should be utilised wherever possible in the widest context.
+- Take care to understand the differences between trace-time and compiled
+behaviour.
+- Most machine learning code can be rewritten in a static way, and should be done so as much as possible to make the most of XLA.
+
+There is much more to JAX than that, but I think this is a good set of points
+for a foundational understanding that can be built upon later to great effect.
+
+Arguably, you don't need this long of an introduction to JAX to start writing
+training loops and this wasn't really my original intention. However, as I was
+writing I found it quite fun to dig deep into the foundations of JAX and its
+behaviour, and I hope this exploration is useful to others also starting to
+learn JAX, or even those with more experience. If it wasn't your cup of tea, I
+promise that future entries will be much more practical.
+
+If you liked this post please consider following me [on
+Twitter](https://twitter.com/alexfmckinney) or [use this RSS
+feed](https://afmck.in/index.xml) for notifications on future ramblings about
+machine learning and other topics. Alternatively you can navigate to the root of
+this website and repeatedly refresh until something happens. Thank you for
+reading this far and I hope you found it useful!
