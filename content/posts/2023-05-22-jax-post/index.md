@@ -1,5 +1,5 @@
 ---
-title: "Jax Post"
+title: "On Learning JAX – A Framework for High Performance Machine Learning"
 date: 2023-05-22T08:41:00+01:00
 draft: false
 ---
@@ -23,7 +23,7 @@ text-to-image model from scratch, à la
 sprint. A lot of nice projects can come out of these community initiatives!
 
 ![Unconditional results from my original paper](img/unconditional.jpg)
-> Unconditional results from my original paper
+> Unconditional results from my original paper.
 
 
 Unfortunately we didn't manage to achieve our final goal, plagued by a subtle
@@ -33,19 +33,16 @@ despite the team's best efforts. You can find the JAX code for our project
 [here](https://github.com/vvvm23/diffusers-sprint-sundae). Despite disappointing
 results, I am still happy I took part as I learned a huge amount.
 
-![Convergence of the text-conditioned model](img/convergence.png)
-> Convergence of our text-to-image model. It plateaus quite early.
-
 ![Really "great" samples](img/sample.png)
-> Really "great" samples
+> Really "great" samples from our community sprint model.
 
 I jumped into JAX by following [an excellent tutorial
 series](https://github.com/gordicaleksa/get-started-with-JAX) by [Aleksa
 Gordic](https://gordicaleksa.com/). Aleksa prefaces the video with the fact that
 he is also just learning JAX. No doubt he is even better now, but I still felt
 quite inspired by this attitude: sharing and teaching as you yourself learn.
-Hence, I decided that following the sprint I would channel this spirit and
-share what I know. And hence, here we are.
+Hence, I decided that following the sprint I would channel this spirit and share
+what I know after just under two months of learning JAX. And hence, here we are.
 
 Although it is possible to implement everything in JAX alone – including
 manually implementing the optimiser and model – this isn't really an approach I
@@ -58,10 +55,10 @@ cover working from scratch.
 Saying that, in this specific blog I will only be covering JAX itself – leaving
 creating a fully-fledged training loop with higher-level libraries to later
 entries. I initially tried covering everything in one unit but the length got
-far too much to handle. Even this post covering only JAX is very long. This post
-is somewhere between a deep dive and an introduction to JAX.
-I've skipped over parts of the framework whilst also drilling deep into concepts
-I feel are important to understand. 
+far too much to handle. Even now, covering only JAX, the post is very long. I
+would call it  somewhere between a deep dive and an introduction to JAX.  I've
+skipped over parts of the framework whilst also drilling deep into concepts I
+feel are important to understand. 
 
 To understand this post you should have some experience with Python and array
 manipulation libraries such as NumPy – machine learning experience helps but
@@ -76,8 +73,6 @@ more experience.
 Without further ado..
 
 ## Basic Usage is *Almost* Like NumPy
-
-![JAX Logo](img/jax_logo.png)
 
 JAX is a framework developed by Google and later open-sourced for
 high-performance machine learning research and numerical computing. Some people
@@ -501,7 +496,7 @@ Although eager mode execution is useful for development work, once
 development is done there is less benefit to eager execution over heavily
 optimised binary blobs, hungry for our data. However, said compilation and optimisations rely on following the rules of JAX.
 
-## Jit needs static shapes
+## JIT needs static shapes
 
 The biggest blocker to jit compiling functions is that **all arrays need to have
 static shapes**. That is to say, given the **shapes** and shapes alone of the
