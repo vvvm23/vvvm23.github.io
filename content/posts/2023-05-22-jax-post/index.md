@@ -1,7 +1,7 @@
 ---
 title: "Jax Post"
-date: 2023-05-16T08:41:00+01:00
-draft: true
+date: 2023-05-22T08:41:00+01:00
+draft: false
 ---
 
 Recently, I took part in the [Huggingface x Google Cloud community
