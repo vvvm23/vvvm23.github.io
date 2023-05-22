@@ -19,11 +19,12 @@ text-conditioned generation. With this new model, we would train a new
 text-to-image model from scratch, à la
 [Dalle-mini](https://github.com/borisdayma/dalle-mini).
 
+> Interestingly, Dalle-mini was born out of a previous Huggingface community
+sprint. A lot of nice projects can come out of these community initiatives!
+
 ![Unconditional results from my original paper](img/unconditional.jpg)
 > Unconditional results from my original paper
 
-> Interestingly, Dalle-mini was born out of a previous Huggingface community
-sprint. A lot of nice projects can come out of these community initiatives!
 
 Unfortunately we didn't manage to achieve our final goal, plagued by a subtle
 bug somewhere in the code. We never got much out of the model apart from pretty
@@ -48,17 +49,17 @@ share what I know. And hence, here we are.
 
 Although it is possible to implement everything in JAX alone – including
 manually implementing the optimiser and model – this isn't really an approach I
-really enjoy. During the sprint, we made heavy use of libraries built on top of
+enjoy. During the sprint, we made heavy use of libraries built on top of
 JAX such as Flax and Optax. It is definitely valuable to try doing everything
 yourself, but if you just want to get started it is similarly worth just leaning
 into higher-level frameworks, and I feel plenty of existing tutorials already
 cover working from scratch.
 
 Saying that, in this specific blog I will only be covering JAX itself – leaving
-creating a fully fledged training loop with higher-level libraries to later
+creating a fully-fledged training loop with higher-level libraries to later
 entries. I initially tried covering everything in one unit but the length got
 far too much to handle. Even this post covering only JAX is very long. This post
-is somewhere between a deep dive into JAX and an introduction to the framework.
+is somewhere between a deep dive and an introduction to JAX.
 I've skipped over parts of the framework whilst also drilling deep into concepts
 I feel are important to understand. 
 
@@ -68,7 +69,7 @@ isn't necessary. I hope it can be a good entry point into the JAX ecosystem as
 well as providing some unique perspectives that may be interesting to those with
 more experience.
 
-> If you are curious how doing everything from scratch could be done, I would
+> If you are curious about implementing everything from scratch, I would
 > take a look at aforementioned [tutorial by Aleksa Gordic](https://github.com/gordicaleksa/get-started-with-JAX), or the official
 > tutorials [here](https://jax.readthedocs.io/en/latest/jax-101/index.html).
 
@@ -87,7 +88,7 @@ JAX says it stands for "**J**ust **A**fter e**X**ecution. When I share this
 piece of trivia, no one seems that bothered.
 
 A big draw to JAX is that it shares a similar API to NumPy but can be executed
-on fast accelerators such as GPUs and TPUs but with accelerator agnostic code.
+on fast accelerators such as GPUs and TPUs whilst having accelerator agnostic code.
 The familiar API also helps get engineers up to speed with JAX – or at least
 gets them through the door. Furthermore, it has very good inbuilt support for
 multi-device parallelism compared to other frameworks that **could be used for
@@ -96,18 +97,18 @@ machine learning** such as PyTorch and Tensorflow.
 Although definitely intended to support machine learning research, to me it
 appears to have a weaker bias towards machine learning and is more readily
 applied to other domains. This is somewhat akin to NumPy which is a general
-purpose array manipulation library, being that its purpose is what you make of
-it. However, I believe the way you should use JAX is very different to NumPy,
-despite initial appearances.
+purpose array manipulation library, being that it is general enough to do
+anything. However, I believe the way you should use JAX is very different to
+NumPy, despite initial appearances.
 
 Specifically, if NumPy is about manipulating arrays operation by operation, JAX
-is about **defining computational graphs and letting the compiler optimise it**.
-In other words, defining what you want to happen and letting JAX do the heavy
-lifting in making it run fast. In NumPy, the burden is on the developer to
-optimise everything by calling into fast and heavily optimised functions and
-avoid slow Python land as much as possible. This extra burden does garner a
-degree of flexibility over rigid JAX land. In a lot of machine learning
-applications though we don't need such flexibility.
+is about **defining computational graphs of operations and inputs, and letting
+the compiler optimise it**. In other words, defining what you want to happen
+and letting JAX do the heavy lifting in making it run fast. In NumPy, the burden
+is on the developer to optimise everything by calling into fast and heavily
+optimised functions and avoiding slow Python land as much as possible. This extra
+burden does garner a degree of flexibility over rigid JAX. In a lot of
+machine learning applications, though, we don't need such flexibility.
 
 Enough ideological rants, let's see that friendly JAX Numpy API, beginning by
 initialising a few arrays.
@@ -175,7 +176,7 @@ random number generation that modifies some global psuedorandom number generator
 (PRNG) clearly violates both principles. Therefore, we have to handle randomness
 in a stateless way by manually passing around the PRNG key and splitting it to
 create new random seeds. This has the added benefit of making randomness in code
-more reproducible – ignoring accelerator side stochasticity – as in JAX we are
+more reproducible – ignoring accelerator-side stochasticity – as in JAX we are
 forced to handle fixed seeds by default. Let's see what that looks like:
 ```python
 seed = 0x123456789 # some integer seed. In hexadecimal just to be ✨✨
@@ -230,7 +231,7 @@ TypeError                                 Traceback (most recent call last)
 TypeError: '<class 'jaxlib.xla_extension.ArrayImpl'>' object does not support item assignment. JAX arrays are immutable. Instead of ``x[idx] = y``, use ``x = x.at[idx].set(y)`` or another .at[] method: https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html
 ```
 Like the error message says, JAX arrays are **immutable**, hence the same issue
-applies to other inplace ops like `+=`, `*=`, and friends. Also like the error
+applies to other inplace ops like `+=`, `*=` and friends. Also like the error
 message says, we can use the `at` property on JAX arrays to perform functionally
 pure equivalents. This return new arrays, but setting them equal to the old
 variable is numerically equivalent to the true in-place version.
@@ -241,11 +242,11 @@ x1, x1_p999
 Out: (Array([0, 2, 4, 6], dtype=int32), Array([999,   2,   4,   6], dtype=int32))
 ```
 
-> Applying `x1 += 5` and similar *does* work, but under-the-Python-hood this is
+> Applying `x1 += 5` and similar *does* work, but under the Python hood this is
 just `x1 = x1 + 5` anyway. It just creates a new array and hence is still
 immutable.
 
-JAX functions also only accept (NumPy or JAX) array inputs. This is in contrast
+JAX functions also only accept NumPy or JAX array inputs. This is in contrast
 to NumPy that will happily accept Python lists. JAX chooses to throw an error to
 avoid silent degradation in performance.
 
@@ -304,7 +305,7 @@ compile multiple operations – ideally nearly all operations – together using
 XLA. To indicate which region to compile together, we can pass the function we
 want to compile to the function `jax.jit` or use the `@jax.jit` decorator. The
 function will not be compiled immediately, but rather upon first call – hence
-the name "Just in time compilation".
+the name "just-in-time compilation".
 
 During this first call, the shapes of the input arrays will be used to trace out
 a computational graph, stepping through the function with the Python interpreter
@@ -444,7 +445,7 @@ Out: { lambda ; a:f32[4]. let
     _:f32[4] = mul bmm bmm
   in (b,) }
 ```
-Which shows all 1,000 multiplications (trust me!), and comparing it with the
+Which shows all 1,000 multiplications (trust me!). Compare with the
 compiled version:
 ```python
 print(jax.jit(stupid_fn).lower(x).compile().as_text())
@@ -1180,7 +1181,7 @@ in the PyTree registry". By default, the PyTree registry includes the classes
 considered a leaf (i.e: a single element or single array). A PyTree can contain
 other PyTrees, forming a nested structure, and leaves.
 
-> It is possible to registry your own custom classes to the PyTree registry, but
+> It is possible to register your own custom classes to the PyTree registry, but
 > this is outside the scope of this blog.
 
 When calling a jit function, JAX will check for an existing cached compiled
@@ -1244,11 +1245,11 @@ than that, but I haven't delved deep into the topic yet. For another time I
 guess.
 
 ## Function Transformations
-It can't really be a JAX blog without mentioning function transformations. One
+It can't really be a JAX blog post without mentioning function transformations. One
 of the first things you see on the Github repository for JAX is "Dig [...]
 deeper, and you'll see that JAX is really an extensible system for composable
 function transformations". I've begun tinkering with this system myself but not
-enough to write in-depth on it, though I suspect it would mandate an entirely
+enough to write in depth on it, though I suspect it would mandate an entirely
 separate post to do it justice. 
 
 > Just to give you a taste of what is possible, see [this
@@ -1326,7 +1327,7 @@ print(f"d0x: {fn(x)}, d1x: {grad_fn(x)}, d2x: {grad_grad_fn(x)}")
 Out: d0x: 2.0, d1x: 6.0, d2x: 12.0
 ```
 The above behaviour is very hard to achieve in other machine learning frameworks
-such as PyTorch or Tensorflow. But in Jax, thanks to its emphasis on function
+such as PyTorch or Tensorflow. But in JAX, thanks to its emphasis on function
 transformations, it is trivial to achieve.
 
 Sometimes, we want to compute the gradient of a function that also outputs
@@ -1365,7 +1366,7 @@ A more powerful transformation is `jax.pmap` which converts a function into one
 that can be parallelised across
 **multiple accelerators**, usually in a single-program, multiple-data (data
 parallel) fashion. A big pull to using JAX is its inbuilt and easy support for
-parallelism using `pmap` and other "`p`" functions. This is a topic in of itself
+parallelism using `pmap` and other "`p`" functions. This is a topic in and of itself
 though, so I leave exploring this to future blogs. 
 
 ## Conclusion
