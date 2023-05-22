@@ -36,13 +36,14 @@ results, I am still happy I took part as I learned a huge amount.
 ![Really "great" samples](img/sample.png)
 > Really "great" samples from our community sprint model.
 
-I jumped into JAX by following [an excellent tutorial
-series](https://github.com/gordicaleksa/get-started-with-JAX) by [Aleksa
-Gordic](https://gordicaleksa.com/). Aleksa prefaces the video with the fact that
-he is also just learning JAX. No doubt he is even better now, but I still felt
-quite inspired by this attitude: sharing and teaching as you yourself learn.
-Hence, I decided that following the sprint I would channel this spirit and share
-what I know after just under two months of learning JAX. And hence, here we are.
+In preparation for the community sprint, I jumped into JAX by following [an
+excellent tutorial series](https://github.com/gordicaleksa/get-started-with-JAX)
+by [Aleksa Gordic](https://gordicaleksa.com/). Aleksa prefaces the video with
+the fact that he is also just learning JAX. No doubt he is even better now, but
+I still felt quite inspired by this attitude: sharing and teaching as you
+yourself learn.  Hence, I decided that following the sprint I would channel this
+spirit and share what I know after just under two months of learning JAX. And
+hence, here we are.
 
 Although it is possible to implement everything in JAX alone – including
 manually implementing the optimiser and model – this isn't really an approach I
