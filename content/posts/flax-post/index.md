@@ -16,13 +16,60 @@ To summarise the two libraries:
 
 At the end of this post, we will have implemented and trained a very simple **class-conditioned image generation model** called a **variational autoencoder** (VAE) to generate MNIST digits.
 
+> I am not aware of other libraries that do the same thing as Optax, but there are a lot of neural network APIs built on top of JAX, such as [Equinox](https://github.com/patrick-kidger/equinox/) by [Patrik Kidger](https://kidger.site/), and [Haiku](https://github.com/deepmind/dm-haiku) developed at Deepmind. I simply picked Flax here in order to have perfect interoperability with Huggingface models during the [Huggingface JAX Diffusers sprint](https://github.com/huggingface/community-events/tree/main/jax-controlnet-sprint).
+
 ## Neural Network API with Flax
-foobar
+- High level pattern of doing a training loop in JAX
+- Which part does Flax address?
+- The ways of defining a module.
+    - regular and compact representation
+- What does that give us?
+    - easy parameter init as a PyTree
+    - easy way to call the model (whilst remaining stateless)
+    - easier to reason about for the developer (class based)
+- Model itself is essentially a hollow shell: loosely associating parameters with some ops. 
+    - Essentially a helper object. We can imagine a function $f_\Theta(x)$.
+    - In PyTorch, a module is $f_\Theta$ that we can apply $x$ to.
+    - In Flax, a module is literally $f$, which we apply both $\Theta$ and $x$ to.
+    - It makes it quite easy to swap out params.
+- params as a PyTree makes it interoperate perfectly with not only JAX, but other libraries built on top of JAX.
+    - This modularity is quite common in the JAX ecosystem, we aren't locked into something (typically) if we pick one library.
+- The final result is the same. We get params and ops that is passed to a function. This gets traced and compiled as before. We get an optimised compiled function.
+- There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model.
+- Flax comes with a bunch of other layers inbuilt. I won't enumerate them all, but all the usual culprits are there.
+    - Keep in mind though, some default initialisers are different which could be an issue if you are porting models from other frameworks to Flax.
+- There is a lot more to Flax than this, but enough for now. Main takeaway are:
+    - During dev time, Flax helps the developer reason about neural networks in an object-orientated way whilst remaining functional during runtime.
+    - During runtime, `flax.linen` is a helper for creating stateless shells that build PyTrees of parameters and loosely associate said parameters with JAX operations.
+    - Statelessness is important to allow Flax to interoperate with JAX and other libraries built on JAX, but also kinda neat.
 
-## Optimisers with Optax
+## A full training loop with Optax and Flax
+- (hard to explain optax without something to target)
+- Show the main Optax concepts briefly
+    - Stateless optimiser (SGD)
+    - Stateful (show optimiser state, and how this must be passed around too)
+    - How to call the optimiser?
+- Define our configuration options
+- Create dataset and dataloader
+- Define our VAE model!
+    - Briefly describe what a VAE is too
+    - Conv model? Or Linear?
+- Introduce the `create_train_step` and `train_step` pattern
+    - Also `create_eval_step` and `eval_step` pattern
+- Initialise everything!
+- Create main training loop
+- Plot some nice samples
 
-## Nice extras in Optax
-
-## Altogether now - A full training loop
+## Nice extra tidbits
+- Flax Train State
+- Learning Rate schedulers
+    - Linear, w/ warmup
+- Grad clipping and chaining
+- EMA
+- Finetuning specific parameters
+- Orbax?
+    - Just mention? Or show basic use-case?
 
 ## Conclusion
+- Less ideological, more a practical guide to use JAX + Flax + Optax
+
