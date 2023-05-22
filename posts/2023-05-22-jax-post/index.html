@@ -1,0 +1,1035 @@
+<!doctype html><html lang=en dir=auto><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><meta name=robots content="index, follow"><title>Jax Post | Alex McKinney</title><meta name=keywords content><meta name=description content="Recently, I took part in the Huggingface x Google Cloud community sprint which (despite being named a ControlNet sprint) had a very broad scope: involve diffusion models, use JAX, and use TPUs provided for free by Google Cloud. A lot of cool projects came out of it in a relatively short span of time.
+Our project was quite ambitious: to take my master&rsquo;s dissertation work on combining step-unrolled denoising autoencoders (loosely adjacent to discrete diffusion models) with VQ-GAN, porting it all to JAX, then adding support for text-conditioned generation."><meta name=author content><link rel=canonical href=https://afmck.in/posts/2023-05-22-jax-post/><link crossorigin=anonymous href=/assets/css/stylesheet.min.0fbade1da18e97af7375719317bb9ec325a4f325a425cbb45b6b7c0f5ce82a5d.css integrity="sha256-D7reHaGOl69zdXGTF7uewyWk8yWkJcu0W2t8D1zoKl0=" rel="preload stylesheet" as=style><script defer crossorigin=anonymous src=/assets/js/highlight.min.b95bacdc39e37a332a9f883b1e78be4abc1fdca2bc1f2641f55e3cd3dabd4d61.js integrity="sha256-uVus3DnjejMqn4g7Hni+Srwf3KK8HyZB9V4809q9TWE=" onload=hljs.initHighlightingOnLoad()></script>
+<link rel=icon href=https://afmck.in/favicon.ico><link rel=icon type=image/png sizes=16x16 href=https://afmck.in/favicon-16x16.png><link rel=icon type=image/png sizes=32x32 href=https://afmck.in/favicon-32x32.png><link rel=apple-touch-icon href=https://afmck.in/apple-touch-icon.png><link rel=mask-icon href=https://afmck.in/safari-pinned-tab.svg><meta name=theme-color content="#2e2e33"><meta name=msapplication-TileColor content="#2e2e33"><noscript><style>#theme-toggle,.top-link{display:none}</style><style>@media(prefers-color-scheme:dark){:root{--theme:rgb(29, 30, 32);--entry:rgb(46, 46, 51);--primary:rgb(218, 218, 219);--secondary:rgb(155, 156, 157);--tertiary:rgb(65, 66, 68);--content:rgb(196, 196, 197);--hljs-bg:rgb(46, 46, 51);--code-bg:rgb(55, 56, 62);--border:rgb(51, 51, 51)}.list{background:var(--theme)}.list:not(.dark)::-webkit-scrollbar-track{background:0 0}.list:not(.dark)::-webkit-scrollbar-thumb{border-color:var(--theme)}}</style></noscript><meta property="og:title" content="Jax Post"><meta property="og:description" content="Recently, I took part in the Huggingface x Google Cloud community sprint which (despite being named a ControlNet sprint) had a very broad scope: involve diffusion models, use JAX, and use TPUs provided for free by Google Cloud. A lot of cool projects came out of it in a relatively short span of time.
+Our project was quite ambitious: to take my master&rsquo;s dissertation work on combining step-unrolled denoising autoencoders (loosely adjacent to discrete diffusion models) with VQ-GAN, porting it all to JAX, then adding support for text-conditioned generation."><meta property="og:type" content="article"><meta property="og:url" content="https://afmck.in/posts/2023-05-22-jax-post/"><meta property="article:section" content="posts"><meta property="article:published_time" content="2023-05-22T08:41:00+01:00"><meta property="article:modified_time" content="2023-05-22T08:41:00+01:00"><meta name=twitter:card content="summary"><meta name=twitter:title content="Jax Post"><meta name=twitter:description content="Recently, I took part in the Huggingface x Google Cloud community sprint which (despite being named a ControlNet sprint) had a very broad scope: involve diffusion models, use JAX, and use TPUs provided for free by Google Cloud. A lot of cool projects came out of it in a relatively short span of time.
+Our project was quite ambitious: to take my master&rsquo;s dissertation work on combining step-unrolled denoising autoencoders (loosely adjacent to discrete diffusion models) with VQ-GAN, porting it all to JAX, then adding support for text-conditioned generation."><script type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":2,"name":"Posts","item":"https://afmck.in/posts/"},{"@type":"ListItem","position":3,"name":"Jax Post","item":"https://afmck.in/posts/2023-05-22-jax-post/"}]}</script><script type=application/ld+json>{"@context":"https://schema.org","@type":"BlogPosting","headline":"Jax Post","name":"Jax Post","description":"Recently, I took part in the Huggingface x Google Cloud community sprint which (despite being named a ControlNet sprint) had a very broad scope: involve diffusion models, use JAX, and use TPUs provided for free by Google Cloud. A lot of cool projects came out of it in a relatively short span of time.\nOur project was quite ambitious: to take my master\u0026rsquo;s dissertation work on combining step-unrolled denoising autoencoders (loosely adjacent to discrete diffusion models) with VQ-GAN, porting it all to JAX, then adding support for text-conditioned generation.","keywords":[],"articleBody":"Recently, I took part in the Huggingface x Google Cloud community sprint which (despite being named a ControlNet sprint) had a very broad scope: involve diffusion models, use JAX, and use TPUs provided for free by Google Cloud. A lot of cool projects came out of it in a relatively short span of time.\nOur project was quite ambitious: to take my master’s dissertation work on combining step-unrolled denoising autoencoders (loosely adjacent to discrete diffusion models) with VQ-GAN, porting it all to JAX, then adding support for text-conditioned generation. With this new model, we would train a new text-to-image model from scratch, à la Dalle-mini.\nInterestingly, Dalle-mini was born out of a previous Huggingface community sprint. A lot of nice projects can come out of these community initiatives!\nUnconditional results from my original paper\nUnfortunately we didn’t manage to achieve our final goal, plagued by a subtle bug somewhere in the code. We never got much out of the model apart from pretty colours. I wish I could show some fun outputs, but we simply ran out of time, despite the team’s best efforts. You can find the JAX code for our project here. Despite disappointing results, I am still happy I took part as I learned a huge amount.\nConvergence of our text-to-image model. It plateaus quite early.\nReally “great” samples\nI jumped into JAX by following an excellent tutorial series by Aleksa Gordic. Aleksa prefaces the video with the fact that he is also just learning JAX. No doubt he is even better now, but I still felt quite inspired by this attitude: sharing and teaching as you yourself learn. Hence, I decided that following the sprint I would channel this spirit and share what I know. And hence, here we are.\nAlthough it is possible to implement everything in JAX alone – including manually implementing the optimiser and model – this isn’t really an approach I enjoy. During the sprint, we made heavy use of libraries built on top of JAX such as Flax and Optax. It is definitely valuable to try doing everything yourself, but if you just want to get started it is similarly worth just leaning into higher-level frameworks, and I feel plenty of existing tutorials already cover working from scratch.\nSaying that, in this specific blog I will only be covering JAX itself – leaving creating a fully-fledged training loop with higher-level libraries to later entries. I initially tried covering everything in one unit but the length got far too much to handle. Even this post covering only JAX is very long. This post is somewhere between a deep dive and an introduction to JAX. I’ve skipped over parts of the framework whilst also drilling deep into concepts I feel are important to understand.\nTo understand this post you should have some experience with Python and array manipulation libraries such as NumPy – machine learning experience helps but isn’t necessary. I hope it can be a good entry point into the JAX ecosystem as well as providing some unique perspectives that may be interesting to those with more experience.\nIf you are curious about implementing everything from scratch, I would take a look at aforementioned tutorial by Aleksa Gordic, or the official tutorials here.\nWithout further ado..\nBasic Usage is Almost Like NumPy JAX is a framework developed by Google and later open-sourced for high-performance machine learning research and numerical computing. Some people say the name comes from three of its core components, namely the bringing together of Just-in-time compilation, Autodiff, and XLA. The original paper on JAX says it stands for “Just After eXecution. When I share this piece of trivia, no one seems that bothered.\nA big draw to JAX is that it shares a similar API to NumPy but can be executed on fast accelerators such as GPUs and TPUs whilst having accelerator agnostic code. The familiar API also helps get engineers up to speed with JAX – or at least gets them through the door. Furthermore, it has very good inbuilt support for multi-device parallelism compared to other frameworks that could be used for machine learning such as PyTorch and Tensorflow.\nAlthough definitely intended to support machine learning research, to me it appears to have a weaker bias towards machine learning and is more readily applied to other domains. This is somewhat akin to NumPy which is a general purpose array manipulation library, being that it is general enough to do anything. However, I believe the way you should use JAX is very different to NumPy, despite initial appearances.\nSpecifically, if NumPy is about manipulating arrays operation by operation, JAX is about defining computational graphs of operations and inputs, and letting the compiler optimise it. In other words, defining what you want to happen and letting JAX do the heavy lifting in making it run fast. In NumPy, the burden is on the developer to optimise everything by calling into fast and heavily optimised functions and avoiding slow Python land as much as possible. This extra burden does garner a degree of flexibility over rigid JAX. In a lot of machine learning applications, though, we don’t need such flexibility.\nEnough ideological rants, let’s see that friendly JAX Numpy API, beginning by initialising a few arrays.\nimport jax import jax.numpy as jnp import numpy as np L = [0, 1, 2, 3] x_np = np.array(L, dtype=np.int32) x_jnp = jnp.array(L, dtype=jnp.int32) x_np, x_jnp === Out: (Array([0, 1, 2, 3], dtype=int32), array([0, 1, 2, 3], dtype=int32)) Note, you may see in older tutorials the line import jax.numpy as np. This is no longer the convention and prior suggestions to do so will remain a stain on human history.\nFrighteningly similar right? The jax.numpy interface closely mirrors that of numpy, which means nearly anything we could do numpy we can do in jax.numpy using similar functions.\nx1 = x_jnp*2 x2 = x_jnp+1 x3 = x1 + x2 x1, x2, x3 === Out: (Array([0, 2, 4, 6], dtype=int32), Array([1, 2, 3, 4], dtype=int32), Array([ 1, 4, 7, 10], dtype=int32)) jnp.dot(x1, x2), jnp.outer(x1, x2) === Out: (Array(40, dtype=int32), Array([[ 0, 0, 0, 0], [ 2, 4, 6, 8], [ 4, 8, 12, 16], [ 6, 12, 18, 24]], dtype=int32)) All of this should look familiar to you if you have used NumPy before. I won’t bore you to death by enumerating functions – that’s what documentation is for.\nThe first interesting difference is how JAX handles randomness. In NumPy, to generate a random array from the uniform distribution, we can simply do:\nrandom_np = np.random.random((5,)) random_np === Out: array([0.58337985, 0.87832186, 0.08315021, 0.16689551, 0.50940328]) In JAX it works differently. A key concept in JAX is that functions in it are pure. This means that given the same input they will always return the same output, and do not modify any global state from within the function. Using random number generation that modifies some global psuedorandom number generator (PRNG) clearly violates both principles. Therefore, we have to handle randomness in a stateless way by manually passing around the PRNG key and splitting it to create new random seeds. This has the added benefit of making randomness in code more reproducible – ignoring accelerator-side stochasticity – as in JAX we are forced to handle fixed seeds by default. Let’s see what that looks like:\nseed = 0x123456789 # some integer seed. In hexadecimal just to be ✨✨ key = jax.random.PRNGKey(seed) # create the initial key key, subkey = jax.random.split(key) # split the key random_jnp = jax.random.uniform(subkey, (5,)) # use `subkey` to generate, `key` can be split into more subkeys later. random_jnp === Out: Array([0.2918682 , 0.90834665, 0.13555491, 0.08107758, 0.9746183 ], dtype=float32) It is important to not reuse the same key if you want each random op to produce different outputs:\njax.random.normal(key, (2,)), jax.random.normal(key, (2,)) === Out: (Array([-0.67039955, 0.02259737], dtype=float32), Array([-0.67039955, 0.02259737], dtype=float32)) You may be pleased to know that if we want to generate N random arrays, we don’t need to call jax.random.split in a loop N times. Pass the number of keys you want to the function:\nkey, *subkeys = jax.random.split(key, 5) [jax.random.normal(s, (2,2)) for s in subkeys] === Out: [Array([[ 1.0308125 , -0.07533383], [-0.36027843, -1.270425 ]], dtype=float32), Array([[ 0.34779412, -0.11094793], [ 1.0509511 , 0.52164143]], dtype=float32), Array([[ 1.5565109 , -0.9507161 ], [ 1.4706124 , 0.25808835]], dtype=float32), Array([[-0.5725152 , -1.1480215 ], [-0.6206856 , -0.12488112]], dtype=float32)] Another small difference is that JAX does not permit in-place operations:\nx1[0] = 5 === Out: TypeError Traceback (most recent call last) \u003cipython-input-25-e0318c4eb619\u003e in \u003ccell line: 1\u003e() ----\u003e 1 x1[0] = 5 /usr/local/lib/python3.10/dist-packages/jax/_src/numpy/array_methods.py in _unimplemented_setitem(self, i, x) 261 \"or another .at[] method: \" 262 \"https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html\") --\u003e 263 raise TypeError(msg.format(type(self))) 264 265 def _operator_round(number: ArrayLike, ndigits: Optional[int] = None) -\u003e Array: TypeError: '","wordCount":"8340","inLanguage":"en","datePublished":"2023-05-22T08:41:00+01:00","dateModified":"2023-05-22T08:41:00+01:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://afmck.in/posts/2023-05-22-jax-post/"},"publisher":{"@type":"Organization","name":"Alex McKinney","logo":{"@type":"ImageObject","url":"https://afmck.in/favicon.ico"}}}</script></head><body id=top><script>localStorage.getItem("pref-theme")==="dark"?document.body.classList.add("dark"):localStorage.getItem("pref-theme")==="light"?document.body.classList.remove("dark"):window.matchMedia("(prefers-color-scheme: dark)").matches&&document.body.classList.add("dark")</script><header class=header><nav class=nav><div class=logo><a href=https://afmck.in accesskey=h title="Alex McKinney (Alt + H)">Alex McKinney</a><div class=logo-switches><button id=theme-toggle accesskey=t title="(Alt + T)"><svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentcolor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg><svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentcolor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button></div></div><ul id=menu><li><a href=https://afmck.in/about title=About><span>About</span></a></li><li><a href=https://afmck.in/posts title=Posts><span>Posts</span></a></li><li><a href=https://afmck.in/cv.pdf title=CV><span>CV</span></a></li></ul></nav></header><main class=main><article class=post-single><header class=post-header><h1 class=post-title>Jax Post</h1><div class=post-meta><span title='2023-05-22 08:41:00 +0100 +0100'>May 22, 2023</span></div></header><div class=toc><details><summary accesskey=c title="(Alt + C)"><span class=details>Table of Contents</span></summary><div class=inner><ul><li><a href=#basic-usage-is-almost-like-numpy aria-label="Basic Usage is Almost Like NumPy">Basic Usage is <em>Almost</em> Like NumPy</a></li><li><a href=#enter-jaxjit aria-label="Enter jax.jit">Enter <code>jax.jit</code></a></li><li><a href=#jit-needs-static-shapes aria-label="Jit needs static shapes">Jit needs static shapes</a></li><li><a href=#limit-the-number-of-possible-input-shapes aria-label="Limit the number of possible input shapes">Limit the number of possible input shapes</a></li><li><a href=#functional-purity-and-side-effects aria-label="Functional Purity and Side Effects">Functional Purity and Side Effects</a></li><li><a href=#conditionals-and-loops-in-compiled-functions aria-label="Conditionals and Loops in Compiled Functions">Conditionals and Loops in Compiled Functions</a></li><li><a href=#briefly-pytrees aria-label="Briefly, PyTrees">Briefly, PyTrees</a></li><li><a href=#function-transformations aria-label="Function Transformations">Function Transformations</a></li><li><a href=#conclusion aria-label=Conclusion>Conclusion</a></li></ul></div></details></div><div class=post-content><p>Recently, I took part in the <a href=https://github.com/huggingface/community-events/tree/main/jax-controlnet-sprint>Huggingface x Google Cloud community
+sprint</a>
+which (despite being named a ControlNet sprint) had a very broad scope: involve
+diffusion models, use <a href=https://github.com/google/jax>JAX</a>, and use TPUs
+provided for free by Google Cloud. A lot of cool projects came out of it in a
+relatively short span of time.</p><p>Our project was quite ambitious: to take my master&rsquo;s dissertation work on
+combining <a href=https://arxiv.org/abs/2112.06749>step-unrolled denoising
+autoencoders</a> (loosely adjacent to discrete
+diffusion models) with VQ-GAN, porting it all to JAX, then adding support for
+text-conditioned generation. With this new model, we would train a new
+text-to-image model from scratch, à la
+<a href=https://github.com/borisdayma/dalle-mini>Dalle-mini</a>.</p><blockquote><p>Interestingly, Dalle-mini was born out of a previous Huggingface community
+sprint. A lot of nice projects can come out of these community initiatives!</p></blockquote><p><img loading=lazy src=img/unconditional.jpg alt="Unconditional results from my original paper"></p><blockquote><p>Unconditional results from my original paper</p></blockquote><p>Unfortunately we didn&rsquo;t manage to achieve our final goal, plagued by a subtle
+bug somewhere in the code. We never got much out of the model apart from pretty
+colours. I wish I could show some fun outputs, but we simply ran out of time,
+despite the team&rsquo;s best efforts. You can find the JAX code for our project
+<a href=https://github.com/vvvm23/diffusers-sprint-sundae>here</a>. Despite disappointing
+results, I am still happy I took part as I learned a huge amount.</p><p><img loading=lazy src=img/convergence.png alt="Convergence of the text-conditioned model"></p><blockquote><p>Convergence of our text-to-image model. It plateaus quite early.</p></blockquote><p><img loading=lazy src=img/sample.png alt="Really &amp;ldquo;great&amp;rdquo; samples"></p><blockquote><p>Really &ldquo;great&rdquo; samples</p></blockquote><p>I jumped into JAX by following <a href=https://github.com/gordicaleksa/get-started-with-JAX>an excellent tutorial
+series</a> by <a href=https://gordicaleksa.com/>Aleksa
+Gordic</a>. Aleksa prefaces the video with the fact that
+he is also just learning JAX. No doubt he is even better now, but I still felt
+quite inspired by this attitude: sharing and teaching as you yourself learn.
+Hence, I decided that following the sprint I would channel this spirit and
+share what I know. And hence, here we are.</p><p>Although it is possible to implement everything in JAX alone – including
+manually implementing the optimiser and model – this isn&rsquo;t really an approach I
+enjoy. During the sprint, we made heavy use of libraries built on top of
+JAX such as Flax and Optax. It is definitely valuable to try doing everything
+yourself, but if you just want to get started it is similarly worth just leaning
+into higher-level frameworks, and I feel plenty of existing tutorials already
+cover working from scratch.</p><p>Saying that, in this specific blog I will only be covering JAX itself – leaving
+creating a fully-fledged training loop with higher-level libraries to later
+entries. I initially tried covering everything in one unit but the length got
+far too much to handle. Even this post covering only JAX is very long. This post
+is somewhere between a deep dive and an introduction to JAX.
+I&rsquo;ve skipped over parts of the framework whilst also drilling deep into concepts
+I feel are important to understand.</p><p>To understand this post you should have some experience with Python and array
+manipulation libraries such as NumPy – machine learning experience helps but
+isn&rsquo;t necessary. I hope it can be a good entry point into the JAX ecosystem as
+well as providing some unique perspectives that may be interesting to those with
+more experience.</p><blockquote><p>If you are curious about implementing everything from scratch, I would
+take a look at aforementioned <a href=https://github.com/gordicaleksa/get-started-with-JAX>tutorial by Aleksa Gordic</a>, or the official
+tutorials <a href=https://jax.readthedocs.io/en/latest/jax-101/index.html>here</a>.</p></blockquote><p>Without further ado..</p><h2 id=basic-usage-is-almost-like-numpy>Basic Usage is <em>Almost</em> Like NumPy<a hidden class=anchor aria-hidden=true href=#basic-usage-is-almost-like-numpy>#</a></h2><p><img loading=lazy src=img/jax_logo.png alt="JAX Logo"></p><p>JAX is a framework developed by Google and later open-sourced for
+high-performance machine learning research and numerical computing. Some people
+say the name comes from three of its core components, namely the bringing
+together of
+<strong>J</strong>ust-in-time compilation, <strong>A</strong>utodiff, and <strong>X</strong>LA. The original paper on
+JAX says it stands for &ldquo;<strong>J</strong>ust <strong>A</strong>fter e<strong>X</strong>ecution. When I share this
+piece of trivia, no one seems that bothered.</p><p>A big draw to JAX is that it shares a similar API to NumPy but can be executed
+on fast accelerators such as GPUs and TPUs whilst having accelerator agnostic code.
+The familiar API also helps get engineers up to speed with JAX – or at least
+gets them through the door. Furthermore, it has very good inbuilt support for
+multi-device parallelism compared to other frameworks that <strong>could be used for
+machine learning</strong> such as PyTorch and Tensorflow.</p><p>Although definitely intended to support machine learning research, to me it
+appears to have a weaker bias towards machine learning and is more readily
+applied to other domains. This is somewhat akin to NumPy which is a general
+purpose array manipulation library, being that it is general enough to do
+anything. However, I believe the way you should use JAX is very different to
+NumPy, despite initial appearances.</p><p>Specifically, if NumPy is about manipulating arrays operation by operation, JAX
+is about <strong>defining computational graphs of operations and inputs, and letting
+the compiler optimise it</strong>. In other words, defining what you want to happen
+and letting JAX do the heavy lifting in making it run fast. In NumPy, the burden
+is on the developer to optimise everything by calling into fast and heavily
+optimised functions and avoiding slow Python land as much as possible. This extra
+burden does garner a degree of flexibility over rigid JAX. In a lot of
+machine learning applications, though, we don&rsquo;t need such flexibility.</p><p>Enough ideological rants, let&rsquo;s see that friendly JAX Numpy API, beginning by
+initialising a few arrays.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#f92672>import</span> jax
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> jax.numpy <span style=color:#66d9ef>as</span> jnp
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> numpy <span style=color:#66d9ef>as</span> np
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>L <span style=color:#f92672>=</span> [<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>3</span>]
+</span></span><span style=display:flex><span>x_np <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>array(L, dtype<span style=color:#f92672>=</span>np<span style=color:#f92672>.</span>int32)
+</span></span><span style=display:flex><span>x_jnp <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>array(L, dtype<span style=color:#f92672>=</span>jnp<span style=color:#f92672>.</span>int32)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>x_np, x_jnp
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: (Array([<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>3</span>], dtype<span style=color:#f92672>=</span>int32), array([<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>3</span>], dtype<span style=color:#f92672>=</span>int32))
+</span></span></code></pre></div><blockquote><p>Note, you may see in older tutorials the line <code>import jax.numpy as np</code>.
+This is no longer the convention and prior suggestions to do so will remain a
+stain on human history.</p></blockquote><p>Frighteningly similar right? The <code>jax.numpy</code> interface closely mirrors that of
+<code>numpy</code>, which means nearly anything we could do <code>numpy</code> we can do in
+<code>jax.numpy</code> using similar functions.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>x1 <span style=color:#f92672>=</span> x_jnp<span style=color:#f92672>*</span><span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span>x2 <span style=color:#f92672>=</span> x_jnp<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>x3 <span style=color:#f92672>=</span> x1 <span style=color:#f92672>+</span> x2
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>x1, x2, x3
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: (Array([<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>4</span>, <span style=color:#ae81ff>6</span>], dtype<span style=color:#f92672>=</span>int32),
+</span></span><span style=display:flex><span> Array([<span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>3</span>, <span style=color:#ae81ff>4</span>], dtype<span style=color:#f92672>=</span>int32),
+</span></span><span style=display:flex><span> Array([ <span style=color:#ae81ff>1</span>,  <span style=color:#ae81ff>4</span>,  <span style=color:#ae81ff>7</span>, <span style=color:#ae81ff>10</span>], dtype<span style=color:#f92672>=</span>int32))
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>jnp<span style=color:#f92672>.</span>dot(x1, x2), jnp<span style=color:#f92672>.</span>outer(x1, x2)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: (Array(<span style=color:#ae81ff>40</span>, dtype<span style=color:#f92672>=</span>int32),
+</span></span><span style=display:flex><span> Array([[ <span style=color:#ae81ff>0</span>,  <span style=color:#ae81ff>0</span>,  <span style=color:#ae81ff>0</span>,  <span style=color:#ae81ff>0</span>],
+</span></span><span style=display:flex><span>        [ <span style=color:#ae81ff>2</span>,  <span style=color:#ae81ff>4</span>,  <span style=color:#ae81ff>6</span>,  <span style=color:#ae81ff>8</span>],
+</span></span><span style=display:flex><span>        [ <span style=color:#ae81ff>4</span>,  <span style=color:#ae81ff>8</span>, <span style=color:#ae81ff>12</span>, <span style=color:#ae81ff>16</span>],
+</span></span><span style=display:flex><span>        [ <span style=color:#ae81ff>6</span>, <span style=color:#ae81ff>12</span>, <span style=color:#ae81ff>18</span>, <span style=color:#ae81ff>24</span>]], dtype<span style=color:#f92672>=</span>int32))
+</span></span></code></pre></div><p>All of this should look familiar to you if you have used NumPy before. I won&rsquo;t
+bore you to death by enumerating functions – that&rsquo;s what documentation is for.</p><p>The first interesting difference is how JAX handles randomness. In NumPy, to
+generate a random array from the uniform distribution, we can simply do:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>random_np <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>random((<span style=color:#ae81ff>5</span>,))
+</span></span><span style=display:flex><span>random_np
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: array([<span style=color:#ae81ff>0.58337985</span>, <span style=color:#ae81ff>0.87832186</span>, <span style=color:#ae81ff>0.08315021</span>, <span style=color:#ae81ff>0.16689551</span>, <span style=color:#ae81ff>0.50940328</span>])
+</span></span></code></pre></div><p>In JAX it works differently. A key concept in JAX is that functions in it are
+<strong>pure</strong>. This means that given the same input they will always return the same
+output, and do not modify any global state from within the function. Using
+random number generation that modifies some global psuedorandom number generator
+(PRNG) clearly violates both principles. Therefore, we have to handle randomness
+in a stateless way by manually passing around the PRNG key and splitting it to
+create new random seeds. This has the added benefit of making randomness in code
+more reproducible – ignoring accelerator-side stochasticity – as in JAX we are
+forced to handle fixed seeds by default. Let&rsquo;s see what that looks like:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>seed <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x123456789</span> <span style=color:#75715e># some integer seed. In hexadecimal just to be ✨✨</span>
+</span></span><span style=display:flex><span>key <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>PRNGKey(seed) <span style=color:#75715e># create the initial key</span>
+</span></span><span style=display:flex><span>key, subkey <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>split(key) <span style=color:#75715e># split the key</span>
+</span></span><span style=display:flex><span>random_jnp <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>uniform(subkey, (<span style=color:#ae81ff>5</span>,)) <span style=color:#75715e># use `subkey` to generate, `key` can be split into more subkeys later.</span>
+</span></span><span style=display:flex><span>random_jnp
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: Array([<span style=color:#ae81ff>0.2918682</span> , <span style=color:#ae81ff>0.90834665</span>, <span style=color:#ae81ff>0.13555491</span>, <span style=color:#ae81ff>0.08107758</span>, <span style=color:#ae81ff>0.9746183</span> ], dtype<span style=color:#f92672>=</span>float32)
+</span></span></code></pre></div><p>It is important to not reuse the same key if you want each random op to produce different outputs:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>normal(key, (<span style=color:#ae81ff>2</span>,)), jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>normal(key, (<span style=color:#ae81ff>2</span>,))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: (Array([<span style=color:#f92672>-</span><span style=color:#ae81ff>0.67039955</span>,  <span style=color:#ae81ff>0.02259737</span>], dtype<span style=color:#f92672>=</span>float32),
+</span></span><span style=display:flex><span> Array([<span style=color:#f92672>-</span><span style=color:#ae81ff>0.67039955</span>,  <span style=color:#ae81ff>0.02259737</span>], dtype<span style=color:#f92672>=</span>float32))
+</span></span></code></pre></div><p>You may be pleased to know that if we want to generate <code>N</code> random arrays, we don&rsquo;t need to call <code>jax.random.split</code> in a loop <code>N</code> times. Pass the number of keys you want to the function:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>key, <span style=color:#f92672>*</span>subkeys <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>split(key, <span style=color:#ae81ff>5</span>)
+</span></span><span style=display:flex><span>[jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>normal(s, (<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>2</span>)) <span style=color:#66d9ef>for</span> s <span style=color:#f92672>in</span> subkeys]
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: [Array([[ <span style=color:#ae81ff>1.0308125</span> , <span style=color:#f92672>-</span><span style=color:#ae81ff>0.07533383</span>],
+</span></span><span style=display:flex><span>        [<span style=color:#f92672>-</span><span style=color:#ae81ff>0.36027843</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1.270425</span>  ]], dtype<span style=color:#f92672>=</span>float32),
+</span></span><span style=display:flex><span> Array([[ <span style=color:#ae81ff>0.34779412</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>0.11094793</span>],
+</span></span><span style=display:flex><span>        [ <span style=color:#ae81ff>1.0509511</span> ,  <span style=color:#ae81ff>0.52164143</span>]], dtype<span style=color:#f92672>=</span>float32),
+</span></span><span style=display:flex><span> Array([[ <span style=color:#ae81ff>1.5565109</span> , <span style=color:#f92672>-</span><span style=color:#ae81ff>0.9507161</span> ],
+</span></span><span style=display:flex><span>        [ <span style=color:#ae81ff>1.4706124</span> ,  <span style=color:#ae81ff>0.25808835</span>]], dtype<span style=color:#f92672>=</span>float32),
+</span></span><span style=display:flex><span> Array([[<span style=color:#f92672>-</span><span style=color:#ae81ff>0.5725152</span> , <span style=color:#f92672>-</span><span style=color:#ae81ff>1.1480215</span> ],
+</span></span><span style=display:flex><span>        [<span style=color:#f92672>-</span><span style=color:#ae81ff>0.6206856</span> , <span style=color:#f92672>-</span><span style=color:#ae81ff>0.12488112</span>]], dtype<span style=color:#f92672>=</span>float32)]
+</span></span></code></pre></div><p>Another small difference is that JAX does not permit in-place operations:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>x1[<span style=color:#ae81ff>0</span>] <span style=color:#f92672>=</span> <span style=color:#ae81ff>5</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: 
+</span></span><span style=display:flex><span><span style=color:#a6e22e>TypeError</span>                                 Traceback (most recent call last)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;</span>ipython<span style=color:#f92672>-</span>input<span style=color:#f92672>-</span><span style=color:#ae81ff>25</span><span style=color:#f92672>-</span>e0318c4eb619<span style=color:#f92672>&gt;</span> <span style=color:#f92672>in</span> <span style=color:#f92672>&lt;</span>cell line: <span style=color:#ae81ff>1</span><span style=color:#f92672>&gt;</span>()
+</span></span><span style=display:flex><span><span style=color:#f92672>----&gt;</span> <span style=color:#ae81ff>1</span> x1[<span style=color:#ae81ff>0</span>] <span style=color:#f92672>=</span> <span style=color:#ae81ff>5</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>/</span>usr<span style=color:#f92672>/</span>local<span style=color:#f92672>/</span>lib<span style=color:#f92672>/</span>python3<span style=color:#ae81ff>.10</span><span style=color:#f92672>/</span>dist<span style=color:#f92672>-</span>packages<span style=color:#f92672>/</span>jax<span style=color:#f92672>/</span>_src<span style=color:#f92672>/</span>numpy<span style=color:#f92672>/</span>array_methods<span style=color:#f92672>.</span>py <span style=color:#f92672>in</span> _unimplemented_setitem(self, i, x)
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>261</span>          <span style=color:#e6db74>&#34;or another .at[] method: &#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>262</span>          <span style=color:#e6db74>&#34;https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>--&gt;</span> <span style=color:#ae81ff>263</span>   <span style=color:#66d9ef>raise</span> <span style=color:#a6e22e>TypeError</span>(msg<span style=color:#f92672>.</span>format(type(self)))
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>264</span> 
+</span></span><span style=display:flex><span>    <span style=color:#ae81ff>265</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_operator_round</span>(number: ArrayLike, ndigits: Optional[int] <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>) <span style=color:#f92672>-&gt;</span> Array:
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>TypeError</span>: <span style=color:#e6db74>&#39;&lt;class &#39;</span>jaxlib<span style=color:#f92672>.</span>xla_extension<span style=color:#f92672>.</span>ArrayImpl<span style=color:#e6db74>&#39;&gt;&#39;</span> object does <span style=color:#f92672>not</span> support item assignment<span style=color:#f92672>.</span> JAX arrays are immutable<span style=color:#f92672>.</span> Instead of <span style=color:#960050;background-color:#1e0010>``</span>x[idx] <span style=color:#f92672>=</span> y<span style=color:#960050;background-color:#1e0010>``</span>, use <span style=color:#960050;background-color:#1e0010>``</span>x <span style=color:#f92672>=</span> x<span style=color:#f92672>.</span>at[idx]<span style=color:#f92672>.</span>set(y)<span style=color:#960050;background-color:#1e0010>``</span> <span style=color:#f92672>or</span> another <span style=color:#f92672>.</span>at[] method: https:<span style=color:#f92672>//</span>jax<span style=color:#f92672>.</span>readthedocs<span style=color:#f92672>.</span>io<span style=color:#f92672>/</span>en<span style=color:#f92672>/</span>latest<span style=color:#f92672>/</span>_autosummary<span style=color:#f92672>/</span>jax<span style=color:#f92672>.</span>numpy<span style=color:#f92672>.</span>ndarray<span style=color:#f92672>.</span>at<span style=color:#f92672>.</span>html
+</span></span></code></pre></div><p>Like the error message says, JAX arrays are <strong>immutable</strong>, hence the same issue
+applies to other inplace ops like <code>+=</code>, <code>*=</code> and friends. Also like the error
+message says, we can use the <code>at</code> property on JAX arrays to perform functionally
+pure equivalents. This return new arrays, but setting them equal to the old
+variable is numerically equivalent to the true in-place version.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>x1_p999 <span style=color:#f92672>=</span> x1<span style=color:#f92672>.</span>at[<span style=color:#ae81ff>0</span>]<span style=color:#f92672>.</span>add(<span style=color:#ae81ff>999</span>)
+</span></span><span style=display:flex><span>x1, x1_p999
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: (Array([<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>4</span>, <span style=color:#ae81ff>6</span>], dtype<span style=color:#f92672>=</span>int32), Array([<span style=color:#ae81ff>999</span>,   <span style=color:#ae81ff>2</span>,   <span style=color:#ae81ff>4</span>,   <span style=color:#ae81ff>6</span>], dtype<span style=color:#f92672>=</span>int32))
+</span></span></code></pre></div><blockquote><p>Applying <code>x1 += 5</code> and similar <em>does</em> work, but under the Python hood this is
+just <code>x1 = x1 + 5</code> anyway. It just creates a new array and hence is still
+immutable.</p></blockquote><p>JAX functions also only accept NumPy or JAX array inputs. This is in contrast
+to NumPy that will happily accept Python lists. JAX chooses to throw an error to
+avoid silent degradation in performance.</p><p>One final difference is that out of bounds indexing does not raise an error. This is because raising an error from code running on an accelerator is difficult and our goal with &ldquo;accelerated NumPy&rdquo; is to use accelerators. This is similar to how invalid floating point arithmetic results in NaN values, rather than simply erroring.</p><p>When indexing to retrieve a value out of bounds, JAX will instead just clamp the
+index to the bounds of the array:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>x1[<span style=color:#ae81ff>0</span>], x1[<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>], x1[<span style=color:#ae81ff>10000</span>]
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: (Array(<span style=color:#ae81ff>0</span>, dtype<span style=color:#f92672>=</span>int32), Array(<span style=color:#ae81ff>6</span>, dtype<span style=color:#f92672>=</span>int32), Array(<span style=color:#ae81ff>6</span>, dtype<span style=color:#f92672>=</span>int32))
+</span></span></code></pre></div><p>When indexing to update a value out of bounds (such as by using the <code>.at</code>
+attribute) the update is simply ignored:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>x1 <span style=color:#f92672>=</span> x1<span style=color:#f92672>.</span>at[<span style=color:#ae81ff>10000</span>]<span style=color:#f92672>.</span>set(<span style=color:#ae81ff>999</span>)
+</span></span><span style=display:flex><span>x1
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: Array([<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>4</span>, <span style=color:#ae81ff>6</span>], dtype<span style=color:#f92672>=</span>int32)
+</span></span></code></pre></div><p>All somewhat interesting, but so far there isn&rsquo;t a great deal of pull towards
+JAX over NumPy. It gets more concerning when we start timing the functions:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>x1_np, x2_np <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>asarray(x1), np<span style=color:#f92672>.</span>asarray(x2)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>timeit x1_np <span style=color:#f92672>@</span> x2_np
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>timeit (x1 <span style=color:#f92672>@</span> x2)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: <span style=color:#ae81ff>1.17</span> µs <span style=color:#960050;background-color:#1e0010>±</span> <span style=color:#ae81ff>6.3</span> ns per loop (mean <span style=color:#960050;background-color:#1e0010>±</span> std<span style=color:#f92672>.</span> dev<span style=color:#f92672>.</span> of <span style=color:#ae81ff>7</span> runs, <span style=color:#ae81ff>1000000</span> loops each)
+</span></span><span style=display:flex><span><span style=color:#ae81ff>7.27</span> µs <span style=color:#960050;background-color:#1e0010>±</span> <span style=color:#ae81ff>1.68</span> µs per loop (mean <span style=color:#960050;background-color:#1e0010>±</span> std<span style=color:#f92672>.</span> dev<span style=color:#f92672>.</span> of <span style=color:#ae81ff>7</span> runs, <span style=color:#ae81ff>100000</span> loops each)
+</span></span></code></pre></div><p>The JAX version of the above multiplication is about 6-7 times slower, what
+gives?</p><blockquote><p>The <code>block_until_ready</code> function is needed for benchmarking. Normally, JAX
+does not wait for the operation to complete before returning control to
+Python. It asynchronously dispatches to the accelerator. Hence, the time to
+return may be faster than the actual computation time, resulting in an
+inaccurate benchmark.</p></blockquote><p>It goes back to the point that NumPy is intended for array manipulation in an
+op-by-op (or eager) fashion, whereas JAX is all about defining graphs and
+letting the compiler optimise it for you. By executing JAX functions eagerly
+like NumPy, we leave no room for optimisation and due to extra JAX overhead
+dispatching operations, we get a slower function. Bluntly, if you are using JAX
+like this, you have done something wrong.</p><p>So, how do we get JAX to go fast? By harnessing the power of XLA.</p><h2 id=enter-jaxjit>Enter <code>jax.jit</code><a hidden class=anchor aria-hidden=true href=#enter-jaxjit>#</a></h2><p>The reason why the earlier function was so slow is that JAX is dispatching to
+the accelerator one operation at a time. The intended way to use JAX is to
+compile multiple operations – ideally nearly all operations – together using
+XLA. To indicate which region to compile together, we can pass the function we
+want to compile to the function <code>jax.jit</code> or use the <code>@jax.jit</code> decorator. The
+function will not be compiled immediately, but rather upon first call – hence
+the name &ldquo;just-in-time compilation&rdquo;.</p><p>During this first call, the shapes of the input arrays will be used to trace out
+a computational graph, stepping through the function with the Python interpreter
+and executing the operations one-by-one, recording in the graph what happens.
+This intermediate representation can be given to XLA and subsequently compiled,
+optimised, and cached. This cache will be retrieved if the same function is
+called with the same input array shapes and dtype, skipping the tracing and
+compilation process and calling the heavily optimised, precompiled binary blob
+directly.</p><p>Let&rsquo;s see it in action:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fn</span>(W, b, x):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> x <span style=color:#f92672>@</span> W <span style=color:#f92672>+</span> b
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>key, w_key, b_key, x_key <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>split(key, <span style=color:#ae81ff>4</span>)
+</span></span><span style=display:flex><span>W <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>normal(w_key, (<span style=color:#ae81ff>4</span>, <span style=color:#ae81ff>2</span>)),
+</span></span><span style=display:flex><span>b <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>uniform(b_key, (<span style=color:#ae81ff>2</span>,))
+</span></span><span style=display:flex><span>x <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>normal(x_key, (<span style=color:#ae81ff>4</span>,))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;`fn` time&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>timeit fn(W, b, x)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;`jax.jit(fn)` first call time&#34;</span>)
+</span></span><span style=display:flex><span>jit_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(fn)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>time jit_fn(W, b, x)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;`jit_fn` time&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>timeit jit_fn(W, b, x)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: 
+</span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>`</span>fn<span style=color:#960050;background-color:#1e0010>`</span> time
+</span></span><span style=display:flex><span><span style=color:#ae81ff>26.1</span> µs <span style=color:#960050;background-color:#1e0010>±</span> <span style=color:#ae81ff>1.56</span> µs per loop (mean <span style=color:#960050;background-color:#1e0010>±</span> std<span style=color:#f92672>.</span> dev<span style=color:#f92672>.</span> of <span style=color:#ae81ff>7</span> runs, <span style=color:#ae81ff>10000</span> loops each)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>`</span>jit_fn<span style=color:#960050;background-color:#1e0010>`</span> first call (warmup) time
+</span></span><span style=display:flex><span>CPU times: user <span style=color:#ae81ff>35.8</span> ms, sys: <span style=color:#ae81ff>38</span> µs, total: <span style=color:#ae81ff>35.9</span> ms
+</span></span><span style=display:flex><span>Wall time: <span style=color:#ae81ff>36.3</span> ms
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>`</span>jit_fn<span style=color:#960050;background-color:#1e0010>`</span> time
+</span></span><span style=display:flex><span><span style=color:#ae81ff>7.62</span> µs <span style=color:#960050;background-color:#1e0010>±</span> <span style=color:#ae81ff>1.88</span> µs per loop (mean <span style=color:#960050;background-color:#1e0010>±</span> std<span style=color:#f92672>.</span> dev<span style=color:#f92672>.</span> of <span style=color:#ae81ff>7</span> runs, <span style=color:#ae81ff>100000</span> loops each)
+</span></span></code></pre></div><p>Like expected, the first call will take much longer than the subsequent calls.
+It is important to exclude the first call from any benchmarking for this reason.
+We also see that even for this simple example the compiled version of the
+function executes far quicker than the original function.</p><p>We can view the traced graph as a <code>jaxpr</code> by calling <code>jax.make_jaxpr</code> on the
+function:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>jax<span style=color:#f92672>.</span>make_jaxpr(fn)(params, x)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: { <span style=color:#66d9ef>lambda</span> ; a:f32[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>2</span>] b:f32[<span style=color:#ae81ff>2</span>] c:f32[<span style=color:#ae81ff>4</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    d:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> dot_general[dimension_numbers<span style=color:#f92672>=</span>(([<span style=color:#ae81ff>0</span>], [<span style=color:#ae81ff>0</span>]), ([], []))] c a
+</span></span><span style=display:flex><span>    e:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> add d b
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (e,) }
+</span></span></code></pre></div><p>And also the compiled version of the function, albeit hard to read:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>print(jax<span style=color:#f92672>.</span>jit(fn)<span style=color:#f92672>.</span>lower(params, x)<span style=color:#f92672>.</span>compile()<span style=color:#f92672>.</span>as_text())
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>HloModule jit_fn, entry_computation_layout<span style=color:#f92672>=</span>{(f32[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>0</span>},f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>},f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>})<span style=color:#f92672>-&gt;</span>f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>}}, allow_spmd_sharding_propagation_to_output<span style=color:#f92672>=</span>{true}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>fused_computation (param_0<span style=color:#ae81ff>.1</span>: f32[<span style=color:#ae81ff>2</span>], param_1<span style=color:#ae81ff>.1</span>: f32[<span style=color:#ae81ff>4</span>], param_2: f32[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>2</span>]) <span style=color:#f92672>-&gt;</span> f32[<span style=color:#ae81ff>2</span>] {
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>param_1<span style=color:#ae81ff>.1</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>} parameter(<span style=color:#ae81ff>1</span>)
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>param_2 <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>0</span>} parameter(<span style=color:#ae81ff>2</span>)
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>dot<span style=color:#ae81ff>.0</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} dot(f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>param_1<span style=color:#ae81ff>.1</span>, f32[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>param_2), lhs_contracting_dims<span style=color:#f92672>=</span>{<span style=color:#ae81ff>0</span>}, rhs_contracting_dims<span style=color:#f92672>=</span>{<span style=color:#ae81ff>0</span>}, metadata<span style=color:#f92672>=</span>{op_name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;jit(fn)/jit(main)/dot_general[dimension_numbers=(((0,), (0,)), ((), ())) precision=None preferred_element_type=None]&#34;</span> source_file<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;&lt;ipython-input-4-04cd19da0726&gt;&#34;</span> source_line<span style=color:#f92672>=</span><span style=color:#ae81ff>2</span>}
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>param_0<span style=color:#ae81ff>.1</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} parameter(<span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>  ROOT <span style=color:#f92672>%</span>add<span style=color:#ae81ff>.0</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} add(f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>dot<span style=color:#ae81ff>.0</span>, f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>param_0<span style=color:#ae81ff>.1</span>), metadata<span style=color:#f92672>=</span>{op_name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;jit(fn)/jit(main)/add&#34;</span> source_file<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;&lt;ipython-input-4-04cd19da0726&gt;&#34;</span> source_line<span style=color:#f92672>=</span><span style=color:#ae81ff>2</span>}
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ENTRY <span style=color:#f92672>%</span>main<span style=color:#ae81ff>.6</span> (Arg_0<span style=color:#ae81ff>.1</span>: f32[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>2</span>], Arg_1<span style=color:#ae81ff>.2</span>: f32[<span style=color:#ae81ff>2</span>], Arg_2<span style=color:#ae81ff>.3</span>: f32[<span style=color:#ae81ff>4</span>]) <span style=color:#f92672>-&gt;</span> f32[<span style=color:#ae81ff>2</span>] {
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>Arg_1<span style=color:#ae81ff>.2</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} parameter(<span style=color:#ae81ff>1</span>), sharding<span style=color:#f92672>=</span>{replicated}
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>Arg_2<span style=color:#ae81ff>.3</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>} parameter(<span style=color:#ae81ff>2</span>), sharding<span style=color:#f92672>=</span>{replicated}
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>Arg_0<span style=color:#ae81ff>.1</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>0</span>} parameter(<span style=color:#ae81ff>0</span>), sharding<span style=color:#f92672>=</span>{replicated}
+</span></span><span style=display:flex><span>  ROOT <span style=color:#f92672>%</span>fusion <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} fusion(f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>Arg_1<span style=color:#ae81ff>.2</span>, f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>Arg_2<span style=color:#ae81ff>.3</span>, f32[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>Arg_0<span style=color:#ae81ff>.1</span>), kind<span style=color:#f92672>=</span>kOutput, calls<span style=color:#f92672>=%</span>fused_computation, metadata<span style=color:#f92672>=</span>{op_name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;jit(fn)/jit(main)/add&#34;</span> source_file<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;&lt;ipython-input-4-04cd19da0726&gt;&#34;</span> source_line<span style=color:#f92672>=</span><span style=color:#ae81ff>2</span>}
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>A more explicit and silly example is below:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>stupid_fn</span>(x):
+</span></span><span style=display:flex><span>  y <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>copy(x)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>for</span> _ <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>1000</span>):
+</span></span><span style=display:flex><span>    x <span style=color:#f92672>=</span> x <span style=color:#f92672>*</span> x
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> y
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;`stupid_fn` time&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>time stupid_fn(x)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;`jit_stupid_fn` first call&#34;</span>)
+</span></span><span style=display:flex><span>jit_stupid_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(stupid_fn)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>time jit_stupid_fn(x)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;`jit_stupid_fn` time&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>timeit jit_stupid_fn(x)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: 
+</span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>`</span>stupid_fn<span style=color:#960050;background-color:#1e0010>`</span> time
+</span></span><span style=display:flex><span>CPU times: user <span style=color:#ae81ff>58.6</span> ms, sys: <span style=color:#ae81ff>1.06</span> ms, total: <span style=color:#ae81ff>59.7</span> ms
+</span></span><span style=display:flex><span>Wall time: <span style=color:#ae81ff>81.9</span> ms
+</span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>`</span>jit_stupid_fn<span style=color:#960050;background-color:#1e0010>`</span> first call
+</span></span><span style=display:flex><span>CPU times: user <span style=color:#ae81ff>666</span> ms, sys: <span style=color:#ae81ff>13.9</span> ms, total: <span style=color:#ae81ff>680</span> ms
+</span></span><span style=display:flex><span>Wall time: <span style=color:#ae81ff>800</span> ms
+</span></span><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>`</span>jit_stupid_fn<span style=color:#960050;background-color:#1e0010>`</span> time
+</span></span><span style=display:flex><span><span style=color:#ae81ff>8.72</span> µs <span style=color:#960050;background-color:#1e0010>±</span> <span style=color:#ae81ff>735</span> ns per loop (mean <span style=color:#960050;background-color:#1e0010>±</span> std<span style=color:#f92672>.</span> dev<span style=color:#f92672>.</span> of <span style=color:#ae81ff>7</span> runs, <span style=color:#ae81ff>100000</span> loops each)
+</span></span></code></pre></div><p>In the function, it copies the input <code>x</code> to the variable <code>y</code>, then multiplies the
+input with itself 1,000 times. Finally, it simply returns <code>y</code>, making the
+multiplications totally pointless. In the non-jit version, the program will
+happily and pointlessly perform the multiplications. Ignorance is bliss.</p><p>On first call to the jit function, again JAX will step through all the
+multiplications as it traces out the computational graph. However, the compiled
+version used on subsequent calls will be blazing fast, as XLA sees the
+multiplications are not needed to obtain the final output and optimises them
+out. We can actually see this by printing the <code>jaxpr</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>jax<span style=color:#f92672>.</span>make_jaxpr(stupid_fn)(x)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: { <span style=color:#66d9ef>lambda</span> ; a:f32[<span style=color:#ae81ff>4</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    b:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> copy a
+</span></span><span style=display:flex><span>    c:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul a a
+</span></span><span style=display:flex><span>    d:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul c c
+</span></span><span style=display:flex><span>    e:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul d d
+</span></span><span style=display:flex><span>    f:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul e e
+</span></span><span style=display:flex><span>    <span style=color:#f92672>...</span> <span style=color:#f92672>&lt;</span>truncated<span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>    bmh:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmg bmg
+</span></span><span style=display:flex><span>    bmi:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmh bmh
+</span></span><span style=display:flex><span>    bmj:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmi bmi
+</span></span><span style=display:flex><span>    bmk:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmj bmj
+</span></span><span style=display:flex><span>    bml:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmk bmk
+</span></span><span style=display:flex><span>    bmm:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bml bml
+</span></span><span style=display:flex><span>    _:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmm bmm
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (b,) }
+</span></span></code></pre></div><p>Which shows all 1,000 multiplications (trust me!). Compare with the
+compiled version:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>print(jax<span style=color:#f92672>.</span>jit(stupid_fn)<span style=color:#f92672>.</span>lower(x)<span style=color:#f92672>.</span>compile()<span style=color:#f92672>.</span>as_text())
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: 
+</span></span><span style=display:flex><span>HloModule jit_stupid_fn, entry_computation_layout<span style=color:#f92672>=</span>{(f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>})<span style=color:#f92672>-&gt;</span>f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>}}, allow_spmd_sharding_propagation_to_output<span style=color:#f92672>=</span>{true}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ENTRY <span style=color:#f92672>%</span>main<span style=color:#ae81ff>.2</span> (Arg_0<span style=color:#ae81ff>.1</span>: f32[<span style=color:#ae81ff>4</span>]) <span style=color:#f92672>-&gt;</span> f32[<span style=color:#ae81ff>4</span>] {
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>Arg_0<span style=color:#ae81ff>.1</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>} parameter(<span style=color:#ae81ff>0</span>), sharding<span style=color:#f92672>=</span>{replicated}
+</span></span><span style=display:flex><span>  ROOT <span style=color:#f92672>%</span>copy <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>} copy(f32[<span style=color:#ae81ff>4</span>]{<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>Arg_0<span style=color:#ae81ff>.1</span>)
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Which contains only a single copy operation. Experiment with the above code
+blocks yourself by changing the number of iterations in the loop. You will find
+that the time to execute the original function will increase with number of
+iterations, along with the time to trace the graph on first call to the jit
+function. However, the time to execute the compiled version on subsequent calls
+will not increase in a meaningful way.</p><p>The above is a contrived example, but demonstrates a critical point: <strong>we can
+let XLA do a lot of the heavy lifting for us optimisation-wise.</strong> This is
+different to other frameworks that execute eagerly, where it would
+happily execute extremely pointless code. This isn&rsquo;t a fault of the
+framework as eager execution has many benefits, but demonstrates the
+point that compiling our functions using XLA can help optimise our code in ways
+we didn&rsquo;t know about, or could reasonably anticipate.</p><p>What exact optimisations XLA applies is a topic outside the scope of this blog.
+One quick example is that the earlier statement about JAX arrays not allowing
+in-place operations results in no potential performance loss. This is because
+XLA can identify cases where it can replace operations with in-place
+equivalents. So basically don&rsquo;t sweat it if you were worried earlier about not
+being able to do operations in-place!</p><p>Secondly, in order to let XLA be the best it can be, <strong><code>jax.jit</code> should be used
+in the widest possible context</strong>. For example, (again contrived) if we had only
+jit compiled the multiplications in <code>stupid_fn</code>, XLA would be unaware that the
+outermost loop was unnecessary and could not optimise it out – it is simply
+outside the region to be compiled. A concrete machine learning example would be
+wrapping the entire training step – forward, backwards and optimiser step – in
+<code>jax.jit</code> for maximum effect.</p><p>Most machine learning applications can be expressed in this way: one monolithic
+compiled function that we throw data and model parameters at. It just might take
+some massaging. In the original JAX paper, they say &ldquo;The design of JAX is
+informed by the observation that ML workloads are typically dominated by <strong>PSC
+(pure-and-statically-composed) subroutines</strong>&rdquo; which lends itself well to this
+compilation process. Even functions that seemingly cannot have static input
+shapes can be converted into a static form, for example padding sequences in
+language modeling tasks or rewriting our functions in clever ways.</p><p>Although eager mode execution is useful for development work, once
+development is done there is less benefit to eager execution over heavily
+optimised binary blobs, hungry for our data. However, said compilation and optimisations rely on following the rules of JAX.</p><h2 id=jit-needs-static-shapes>Jit needs static shapes<a hidden class=anchor aria-hidden=true href=#jit-needs-static-shapes>#</a></h2><p>The biggest blocker to jit compiling functions is that <strong>all arrays need to have
+static shapes</strong>. That is to say, given the <strong>shapes</strong> and shapes alone of the
+function inputs, it should be possible to determine the shape of all other
+variables in the traced graph at compile time.</p><p>Take for example the following function, that given an integer <code>length</code> returns
+an array filled with the value <code>val</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>create_filled</span>(val, length):
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> jnp<span style=color:#f92672>.</span>full((length,), val)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(create_filled(<span style=color:#ae81ff>1.0</span>, <span style=color:#ae81ff>5</span>))
+</span></span><span style=display:flex><span>print(create_filled(<span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>2</span>))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>jit_create_filled <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(create_filled)
+</span></span><span style=display:flex><span>jit_create_filled(<span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>5</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: [<span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span>]
+</span></span><span style=display:flex><span>[<span style=color:#ae81ff>2</span> <span style=color:#ae81ff>2</span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>---------------------------------------------------------------------------</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>TypeError</span>                                 Traceback (most recent call last)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;</span>ipython<span style=color:#f92672>-</span>input<span style=color:#f92672>-</span><span style=color:#ae81ff>13</span><span style=color:#f92672>-</span><span style=color:#ae81ff>0</span>ecd13642388<span style=color:#f92672>&gt;</span> <span style=color:#f92672>in</span> <span style=color:#f92672>&lt;</span>cell line: <span style=color:#ae81ff>8</span><span style=color:#f92672>&gt;</span>()
+</span></span><span style=display:flex><span>      <span style=color:#ae81ff>6</span> 
+</span></span><span style=display:flex><span>      <span style=color:#ae81ff>7</span> jit_create_filled <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(create_filled)
+</span></span><span style=display:flex><span><span style=color:#f92672>----&gt;</span> <span style=color:#ae81ff>8</span> jit_create_filled(<span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>5</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    [<span style=color:#f92672>...</span> skipping hidden <span style=color:#ae81ff>12</span> frame]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>3</span> frames
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>/</span>usr<span style=color:#f92672>/</span>local<span style=color:#f92672>/</span>lib<span style=color:#f92672>/</span>python3<span style=color:#ae81ff>.10</span><span style=color:#f92672>/</span>dist<span style=color:#f92672>-</span>packages<span style=color:#f92672>/</span>jax<span style=color:#f92672>/</span>_src<span style=color:#f92672>/</span>core<span style=color:#f92672>.</span>py <span style=color:#f92672>in</span> canonicalize_shape(shape, context)
+</span></span><span style=display:flex><span>   <span style=color:#ae81ff>2037</span>   <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>TypeError</span>:
+</span></span><span style=display:flex><span>   <span style=color:#ae81ff>2038</span>     <span style=color:#66d9ef>pass</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>-&gt;</span> <span style=color:#ae81ff>2039</span>   <span style=color:#66d9ef>raise</span> _invalid_shape_error(shape, context)
+</span></span><span style=display:flex><span>   <span style=color:#ae81ff>2040</span> 
+</span></span><span style=display:flex><span>   <span style=color:#ae81ff>2041</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>canonicalize_dim</span>(d: DimSize, context: str<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;&#34;</span>) <span style=color:#f92672>-&gt;</span> DimSize:
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>TypeError</span>: Shapes must be <span style=color:#ae81ff>1</span>D sequences of concrete values of integer type, got (Traced<span style=color:#f92672>&lt;</span>ShapedArray(int32[], weak_type<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)<span style=color:#f92672>&gt;</span><span style=color:#66d9ef>with</span><span style=color:#f92672>&lt;</span>DynamicJAXprTrace(level<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span><span style=color:#f92672>/</span><span style=color:#ae81ff>0</span>)<span style=color:#f92672>&gt;</span>,)<span style=color:#f92672>.</span>
+</span></span><span style=display:flex><span>If using <span style=color:#960050;background-color:#1e0010>`</span>jit<span style=color:#960050;background-color:#1e0010>`</span>, <span style=color:#66d9ef>try</span> using <span style=color:#960050;background-color:#1e0010>`</span>static_argnums<span style=color:#960050;background-color:#1e0010>`</span> <span style=color:#f92672>or</span> applying <span style=color:#960050;background-color:#1e0010>`</span>jit<span style=color:#960050;background-color:#1e0010>`</span> to smaller subfunctions<span style=color:#f92672>.</span>
+</span></span><span style=display:flex><span>The error occurred <span style=color:#66d9ef>while</span> tracing the function create_filled at <span style=color:#f92672>&lt;</span>ipython<span style=color:#f92672>-</span>input<span style=color:#f92672>-</span><span style=color:#ae81ff>13</span><span style=color:#f92672>-</span><span style=color:#ae81ff>0</span>ecd13642388<span style=color:#f92672>&gt;</span>:<span style=color:#ae81ff>1</span> <span style=color:#66d9ef>for</span> jit<span style=color:#f92672>.</span> This concrete value was <span style=color:#f92672>not</span> available <span style=color:#f92672>in</span> Python because it depends on the value of the argument length<span style=color:#f92672>.</span>
+</span></span></code></pre></div><p>In eager execution, the function returns what we expect. However, when tracing
+the jit version of the function an error appears. This is because when tracing,
+the <code>jnp.full</code> function will receive a tracer array which only contains
+information about the shape and dtype – not the value which is used to determine
+the shape. It is therefore impossible to trace the output array as the shape is
+not known at compile time.</p><p>We can resolve this by using an argument to <code>jax.jit</code> named
+<code>static_argnums</code>. This specifies which arguments to <strong>not</strong> trace, simply
+treating it as a regular Python value at compile time. In the <code>jaxpr</code> graph, the
+<code>length</code> argument to our Python-level function essentially becomes a constant in
+the graph:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>jit_create_filled <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(create_filled, static_argnums<span style=color:#f92672>=</span>(<span style=color:#ae81ff>1</span>,))
+</span></span><span style=display:flex><span>print(jit_create_filled(<span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>5</span>))
+</span></span><span style=display:flex><span>print(jit_create_filled(<span style=color:#ae81ff>1.</span>, <span style=color:#ae81ff>10</span>))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(jax<span style=color:#f92672>.</span>make_jaxpr(create_filled, static_argnums<span style=color:#f92672>=</span>(<span style=color:#ae81ff>1</span>,))(<span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>5</span>))
+</span></span><span style=display:flex><span>print(jax<span style=color:#f92672>.</span>make_jaxpr(create_filled, static_argnums<span style=color:#f92672>=</span>(<span style=color:#ae81ff>1</span>,))(<span style=color:#ae81ff>1.6</span>, <span style=color:#ae81ff>10</span>))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: [<span style=color:#ae81ff>2</span> <span style=color:#ae81ff>2</span> <span style=color:#ae81ff>2</span> <span style=color:#ae81ff>2</span> <span style=color:#ae81ff>2</span>]
+</span></span><span style=display:flex><span>[<span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>1.</span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>{ <span style=color:#66d9ef>lambda</span> ; a:i32[]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    b:i32[<span style=color:#ae81ff>5</span>] <span style=color:#f92672>=</span> broadcast_in_dim[broadcast_dimensions<span style=color:#f92672>=</span>() shape<span style=color:#f92672>=</span>(<span style=color:#ae81ff>5</span>,)] a
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (b,) }
+</span></span><span style=display:flex><span>{ <span style=color:#66d9ef>lambda</span> ; a:f32[]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    b:f32[<span style=color:#ae81ff>10</span>] <span style=color:#f92672>=</span> broadcast_in_dim[broadcast_dimensions<span style=color:#f92672>=</span>() shape<span style=color:#f92672>=</span>(<span style=color:#ae81ff>10</span>,)] a
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (b,) }
+</span></span></code></pre></div><p>As the shape is a constant in the graph now, each time a different <code>length</code> is
+passed to the function it will be recompiled. Hence, this approach only really
+works if the number of possible values for <code>length</code> is very limited, otherwise
+we will be constantly compiling different graphs.</p><p>Make no mistake, even though the Python-level function is identical, <strong>the
+underlying binaries that are called for different static inputs are completely
+different</strong>. We&rsquo;ve basically turned the caching from matching on function and
+input shapes, to matching on function, input shapes, and also the <strong>value</strong> of
+our static arguments.</p><p>A different example now: let&rsquo;s define a function that takes in an input array <code>x</code> and
+boolean mask <code>mask</code> with the same shape as <code>x</code> and returns a new array with
+masked positions set to a large negative number.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>mask_tensor</span>(x, mask):
+</span></span><span style=display:flex><span>  x <span style=color:#f92672>=</span> x<span style=color:#f92672>.</span>at[mask]<span style=color:#f92672>.</span>set(<span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> x
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>key, x_key, mask_key <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>split(key, <span style=color:#ae81ff>3</span>)
+</span></span><span style=display:flex><span>x <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>normal(x_key, (<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>4</span>))
+</span></span><span style=display:flex><span>mask <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>uniform(mask_key, (<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>4</span>)) <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0.5</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;calling eager function&#34;</span>)
+</span></span><span style=display:flex><span>print(mask_tensor(x, mask))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;calling compiled function&#34;</span>)
+</span></span><span style=display:flex><span>jit_mask_tensor <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(mask_tensor)
+</span></span><span style=display:flex><span>jit_mask_tensor(x, mask)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: calling eager function
+</span></span><span style=display:flex><span>[[<span style=color:#f92672>-</span><span style=color:#ae81ff>3.8728207e-01</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.3147168e+00</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>2.2046556e+00</span>  <span style=color:#ae81ff>4.1792620e-02</span>]
+</span></span><span style=display:flex><span> [<span style=color:#f92672>-</span><span style=color:#ae81ff>1.0000000e+02</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0000000e+02</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>8.2206033e-02</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0000000e+02</span>]
+</span></span><span style=display:flex><span> [ <span style=color:#ae81ff>2.1814612e-01</span>  <span style=color:#ae81ff>9.6735013e-01</span>  <span style=color:#ae81ff>1.3497342e+00</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0000000e+02</span>]
+</span></span><span style=display:flex><span> [<span style=color:#f92672>-</span><span style=color:#ae81ff>8.7061942e-01</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0000000e+02</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0000000e+02</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0000000e+02</span>]]
+</span></span><span style=display:flex><span>calling compiled function
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>---------------------------------------------------------------------------</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>NonConcreteBooleanIndexError              Traceback (most recent call last)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&lt;</span>ipython<span style=color:#f92672>-</span>input<span style=color:#f92672>-</span><span style=color:#ae81ff>23</span><span style=color:#f92672>-</span><span style=color:#ae81ff>2</span>daf7923c05b<span style=color:#f92672>&gt;</span> <span style=color:#f92672>in</span> <span style=color:#f92672>&lt;</span>cell line: <span style=color:#ae81ff>14</span><span style=color:#f92672>&gt;</span>()
+</span></span><span style=display:flex><span>     <span style=color:#ae81ff>12</span> print(<span style=color:#e6db74>&#34;calling compiled function&#34;</span>)
+</span></span><span style=display:flex><span>     <span style=color:#ae81ff>13</span> jit_mask_tensor <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(mask_tensor)
+</span></span><span style=display:flex><span><span style=color:#f92672>---&gt;</span> <span style=color:#ae81ff>14</span> jit_mask_tensor(x, mask)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    [<span style=color:#f92672>...</span> skipping hidden <span style=color:#ae81ff>12</span> frame]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>5</span> frames
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>/</span>usr<span style=color:#f92672>/</span>local<span style=color:#f92672>/</span>lib<span style=color:#f92672>/</span>python3<span style=color:#ae81ff>.10</span><span style=color:#f92672>/</span>dist<span style=color:#f92672>-</span>packages<span style=color:#f92672>/</span>jax<span style=color:#f92672>/</span>_src<span style=color:#f92672>/</span>numpy<span style=color:#f92672>/</span>lax_numpy<span style=color:#f92672>.</span>py <span style=color:#f92672>in</span> _expand_bool_indices(idx, shape)
+</span></span><span style=display:flex><span>   <span style=color:#ae81ff>4297</span>       <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> type(abstract_i) <span style=color:#f92672>is</span> ConcreteArray:
+</span></span><span style=display:flex><span>   <span style=color:#ae81ff>4298</span>         <span style=color:#75715e># TODO(mattjj): improve this error by tracking _why_ the indices are not concrete</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>-&gt;</span> <span style=color:#ae81ff>4299</span>         <span style=color:#66d9ef>raise</span> errors<span style=color:#f92672>.</span>NonConcreteBooleanIndexError(abstract_i)
+</span></span><span style=display:flex><span>   <span style=color:#ae81ff>4300</span>       <span style=color:#66d9ef>elif</span> _ndim(i) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>:
+</span></span><span style=display:flex><span>   <span style=color:#ae81ff>4301</span>         <span style=color:#66d9ef>raise</span> <span style=color:#a6e22e>TypeError</span>(<span style=color:#e6db74>&#34;JAX arrays do not support boolean scalar indices&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>NonConcreteBooleanIndexError: Array boolean indices must be concrete; got ShapedArray(bool[<span style=color:#ae81ff>4</span>,<span style=color:#ae81ff>4</span>])
+</span></span></code></pre></div><p>Executing the function in eager mode works as expected. However, the shape of
+intermediate variables cannot be known given knowledge of the input shapes
+alone, as it depends on the number of elements in <code>mask</code> that are <code>True</code>.
+Therefore, we cannot compile the function as not all shapes are static.</p><p>Additionally, we can&rsquo;t use <code>static_argnum</code> as <code>mask</code> itself is not hashable and
+hence can&rsquo;t be used to match calls to cached binaries. Furthermore, even if we
+could, the number of possible values of <code>mask</code> is too high. To handle all
+possibiltiies, we would need to compile <code>2**16</code> or 65,536 graphs.</p><p>Often though, we can rewrite the function to perform the same action and with
+known shapes at all steps:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>mask_tensor</span>(x, mask):
+</span></span><span style=display:flex><span>  x <span style=color:#f92672>=</span> <span style=color:#f92672>~</span>mask <span style=color:#f92672>*</span> x <span style=color:#f92672>-</span> mask<span style=color:#f92672>*</span><span style=color:#ae81ff>100.</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> x
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;calling eager function&#34;</span>)
+</span></span><span style=display:flex><span>print(mask_tensor(x, mask))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;calling compiled function&#34;</span>)
+</span></span><span style=display:flex><span>jit_mask_tensor <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(mask_tensor)
+</span></span><span style=display:flex><span>print(jit_mask_tensor(x, mask))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>calling eager function
+</span></span><span style=display:flex><span>[[   <span style=color:#ae81ff>1.012518</span>   <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>           <span style=color:#f92672>-</span><span style=color:#ae81ff>0.8887863</span>  <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>        ]
+</span></span><span style=display:flex><span> [<span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>         <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>         <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>            <span style=color:#ae81ff>1.5008001</span> ]
+</span></span><span style=display:flex><span> [<span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>           <span style=color:#f92672>-</span><span style=color:#ae81ff>0.6636745</span>     <span style=color:#ae81ff>0.57624763</span>   <span style=color:#f92672>-</span><span style=color:#ae81ff>0.94975847</span>]
+</span></span><span style=display:flex><span> [   <span style=color:#ae81ff>1.1513114</span>  <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>            <span style=color:#ae81ff>0.88873196</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>        ]]
+</span></span><span style=display:flex><span>calling compiled function
+</span></span><span style=display:flex><span>[[   <span style=color:#ae81ff>1.012518</span>   <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>           <span style=color:#f92672>-</span><span style=color:#ae81ff>0.8887863</span>  <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>        ]
+</span></span><span style=display:flex><span> [<span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>         <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>         <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>            <span style=color:#ae81ff>1.5008001</span> ]
+</span></span><span style=display:flex><span> [<span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>           <span style=color:#f92672>-</span><span style=color:#ae81ff>0.6636745</span>     <span style=color:#ae81ff>0.57624763</span>   <span style=color:#f92672>-</span><span style=color:#ae81ff>0.94975847</span>]
+</span></span><span style=display:flex><span> [   <span style=color:#ae81ff>1.1513114</span>  <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>            <span style=color:#ae81ff>0.88873196</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>100.</span>        ]]
+</span></span></code></pre></div><p>All intermediate shapes will be known at compile time. To break it down, we
+multiply <code>x</code> by zero where <code>mask</code> is True, and by one where it is <code>False</code>. We
+then add a new array that is zero where <code>mask</code> is <code>False</code> and <code>-100</code> where
+<code>mask</code> is <code>True</code>. At this point we have two arrays with concrete shapes. Adding
+them together yields the correct result, which is similarly concrete.</p><h2 id=limit-the-number-of-possible-input-shapes>Limit the number of possible input shapes<a hidden class=anchor aria-hidden=true href=#limit-the-number-of-possible-input-shapes>#</a></h2><p>A related case that can &ldquo;kinda&rdquo; be jit compiled is where shapes can be
+determined at compile time but the shapes of the inputs change a lot. As we
+retrieve cached compiled functions by looking at which function was called and
+the shape of the inputs, this will result in a lot of compiling. This makes
+sense, as the graph itself is optimised for a specific static shape, but will
+result in silent slowdowns:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#f92672>import</span> random
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>cube</span>(x):
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> x<span style=color:#f92672>*</span>x<span style=color:#f92672>*</span>x
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>random_shape_test</span>(fn):
+</span></span><span style=display:flex><span>  length <span style=color:#f92672>=</span> random<span style=color:#f92672>.</span>randint(<span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>1000</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> fn(jnp<span style=color:#f92672>.</span>empty((length,)))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;random length eager time:&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>timeit <span style=color:#f92672>-</span>n1000 random_shape_test(cube)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>jit_cube <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(cube)
+</span></span><span style=display:flex><span>jit_cube(x1)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;fixed length compiled time:&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>timeit <span style=color:#f92672>-</span>n1000 jit_cube(x1)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;random length compiled time:&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>%</span>timeit <span style=color:#f92672>-</span>n1000 random_shape_test(jit_cube)<span style=color:#f92672>.</span>block_until_ready()
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>random length eager time:
+</span></span><span style=display:flex><span>The slowest run took <span style=color:#ae81ff>43.13</span> times longer than the fastest<span style=color:#f92672>.</span> This could mean that an intermediate result <span style=color:#f92672>is</span> being cached<span style=color:#f92672>.</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>6.12</span> ms <span style=color:#960050;background-color:#1e0010>±</span> <span style=color:#ae81ff>8.37</span> ms per loop (mean <span style=color:#960050;background-color:#1e0010>±</span> std<span style=color:#f92672>.</span> dev<span style=color:#f92672>.</span> of <span style=color:#ae81ff>7</span> runs, <span style=color:#ae81ff>1000</span> loops each)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>fixed length compiled time:
+</span></span><span style=display:flex><span><span style=color:#ae81ff>7.31</span> µs <span style=color:#960050;background-color:#1e0010>±</span> <span style=color:#ae81ff>241</span> ns per loop (mean <span style=color:#960050;background-color:#1e0010>±</span> std<span style=color:#f92672>.</span> dev<span style=color:#f92672>.</span> of <span style=color:#ae81ff>7</span> runs, <span style=color:#ae81ff>1000</span> loops each)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>random length compiled time:
+</span></span><span style=display:flex><span>The slowest run took <span style=color:#ae81ff>53.37</span> times longer than the fastest<span style=color:#f92672>.</span> This could mean that an intermediate result <span style=color:#f92672>is</span> being cached<span style=color:#f92672>.</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>4.55</span> ms <span style=color:#960050;background-color:#1e0010>±</span> <span style=color:#ae81ff>6.11</span> ms per loop (mean <span style=color:#960050;background-color:#1e0010>±</span> std<span style=color:#f92672>.</span> dev<span style=color:#f92672>.</span> of <span style=color:#ae81ff>7</span> runs, <span style=color:#ae81ff>1000</span> loops each)
+</span></span></code></pre></div><p>Therefore, we should try our best to limit the number of shapes that our jitted
+functions will take as input. Common examples include padding sequences to a
+single length, or setting <code>drop_last=True</code> on data loaders to avoid different
+numbers of examples in a batch.</p><h2 id=functional-purity-and-side-effects>Functional Purity and Side Effects<a hidden class=anchor aria-hidden=true href=#functional-purity-and-side-effects>#</a></h2><p>JAX transformations and compilation are designed to only work on pure Python
+functions. Roughly speaking, a <strong>functionally pure function is one where given
+the same inputs, it will always produce the same outputs, and does not have any
+observable side effects.</strong></p><p>For example, see this example where the output of <code>fn</code> relies not only on <code>x</code>
+but also on <code>shift</code>, which we change between function calls:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>shift <span style=color:#f92672>=</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>x1 <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>2</span>])
+</span></span><span style=display:flex><span>x2 <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>0</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>0</span>])
+</span></span><span style=display:flex><span>x3 <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>3</span>])
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fn</span>(x):
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> x <span style=color:#f92672>+</span> shift
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(fn(x1))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>shift <span style=color:#f92672>=</span> <span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>print(fn(x2))
+</span></span><span style=display:flex><span>print(fn(x3))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>shift <span style=color:#f92672>=</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>jit_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(fn)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(jit_fn(x1))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>shift <span style=color:#f92672>=</span> <span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>print(jit_fn(x2))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(jit_fn(x3))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>[<span style=color:#f92672>-</span><span style=color:#ae81ff>1.</span>  <span style=color:#ae81ff>0.</span>  <span style=color:#ae81ff>1.</span>]
+</span></span><span style=display:flex><span>[<span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>0.</span> <span style=color:#ae81ff>1.</span>]
+</span></span><span style=display:flex><span>[<span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>2.</span> <span style=color:#ae81ff>3.</span> <span style=color:#ae81ff>4.</span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>[<span style=color:#f92672>-</span><span style=color:#ae81ff>1.</span>  <span style=color:#ae81ff>0.</span>  <span style=color:#ae81ff>1.</span>]
+</span></span><span style=display:flex><span>[<span style=color:#f92672>-</span><span style=color:#ae81ff>1.</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>2.</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1.</span>]
+</span></span><span style=display:flex><span>[<span style=color:#ae81ff>1.</span> <span style=color:#ae81ff>2.</span> <span style=color:#ae81ff>3.</span> <span style=color:#ae81ff>4.</span>]
+</span></span></code></pre></div><p>The eager mode calls (the first three) represent our ground truth, the last
+three are outputs of the jit function using the same inputs and global <code>shift value</code>. In the jit function, the first call of a given shape (when we trace)
+will use the correct current global shift value. This is because tracing
+utilises the Python interpreter and so can see the correct global value.</p><p>If we call again and JAX finds a cached function, it won&rsquo;t look at the new
+global shift but instead execute the compiled code directly, which has the old
+value baked into the graph as a constant. However, if tracing is triggered again
+(such as with a different input shape) the correct <code>shift</code> will be used.</p><p>This is what is meant by &ldquo;JAX transformations and compilation are <strong>designed</strong>
+to only work on pure functions&rdquo;. They can still be applied to the impure, but
+the behaviour of the function will diverge from the Python interpreter when
+tracing is skipped and the compiled function is used directly. Another example
+is about functions that use <code>print</code> functions:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fn</span>(x):
+</span></span><span style=display:flex><span>  print(<span style=color:#e6db74>&#34;called identity function&#34;</span>)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> x
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>jit_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(fn)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;called `jit_fn(0.5)`&#34;</span>)
+</span></span><span style=display:flex><span>_ <span style=color:#f92672>=</span> jit_fn(<span style=color:#ae81ff>0.5</span>)
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;called `jit_fn(1.0)`&#34;</span>)
+</span></span><span style=display:flex><span>_ <span style=color:#f92672>=</span> jit_fn(<span style=color:#ae81ff>1.0</span>)
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>&#34;called `jit_fn([-1, 1])`&#34;</span>)
+</span></span><span style=display:flex><span>_ <span style=color:#f92672>=</span> jit_fn(jnp<span style=color:#f92672>.</span>array([<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>1</span>]))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>called <span style=color:#960050;background-color:#1e0010>`</span>jit_fn(<span style=color:#ae81ff>0.5</span>)<span style=color:#960050;background-color:#1e0010>`</span>
+</span></span><span style=display:flex><span>called identity function
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>called <span style=color:#960050;background-color:#1e0010>`</span>jit_fn(<span style=color:#ae81ff>1.0</span>)<span style=color:#960050;background-color:#1e0010>`</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>called <span style=color:#960050;background-color:#1e0010>`</span>jit_fn([<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>, <span style=color:#ae81ff>1</span>])<span style=color:#960050;background-color:#1e0010>`</span>
+</span></span><span style=display:flex><span>called identity function
+</span></span></code></pre></div><p>Again, <strong>whenever tracing is triggered, the behaviour is the same as Python</strong>,
+but whenever the cached function is used, behaviour diverges. This is again
+impure as <code>print</code> is a side effect.</p><p>What about when the global we are using is also a JAX array?</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>b <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>3</span>])
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fn</span>(x):
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> x <span style=color:#f92672>+</span> b
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>jit_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>jit(fn)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>x <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>1</span>,<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>3</span>])
+</span></span><span style=display:flex><span>print(jit_fn(x))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>b <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>0</span>,<span style=color:#ae81ff>0</span>,<span style=color:#ae81ff>0</span>])
+</span></span><span style=display:flex><span>print(jit_fn(x))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>[<span style=color:#ae81ff>2</span> <span style=color:#ae81ff>4</span> <span style=color:#ae81ff>6</span>]
+</span></span><span style=display:flex><span>[<span style=color:#ae81ff>2</span> <span style=color:#ae81ff>4</span> <span style=color:#ae81ff>6</span>]
+</span></span></code></pre></div><p>Again, as the input shape of <code>x</code> hasn&rsquo;t changed, the compiled version will be
+used, hence the value of <code>b</code> in the function won&rsquo;t be updated. However, <code>b</code> is
+actually a variable in the graph, unlike our previous example modifying <code>shift</code>
+where it is a constant in the graph. JAX maintains functional purity in the
+compiled function by adding <code>b</code> as an <strong>implicit argument</strong> in the traced graph.
+Hence, the graph is functionally pure, however <code>b</code> is essentially a constant for
+us as we have no way of modifying this implicit argument at a Python-level
+without recompiling.</p><p>Generally speaking, the <strong>final compiled function</strong> is pure. However, the
+Python-level function we created isn&rsquo;t necessarily pure. Despite this, <code>jax.jit</code>
+can still be applied but requires care. I would summarise the caveats as follows
+though:</p><ul><li>Code that does not manipulate JAX arrays will not be traced and is only called
+during tracing itself (as the Python interpreter steps through the function, and
+evaluates the code like any other Python code). Examples of this include <code>print</code>
+statements and setting Python level variables, as well as Python-level
+conditionals and loops.</li><li>Code that does manipulate JAX arrays <strong>but</strong> the JAX array is not an argument
+to the Python function (perhaps it is global, relative to the function) we
+are jit compiling will be traced, but those variables in the graph will take
+whatever value they had at <strong>compile-time</strong> and become implicit arguments to
+the traced graph.</li></ul><p>I feel both of these impure cases still have value. For example, the first is
+nice when debugging shape issues (such as debugging shape mismatches during
+tracing) or perhaps disabling parts of the function using some global
+configuration object:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>config <span style=color:#f92672>=</span> dict(relu<span style=color:#f92672>=</span><span style=color:#66d9ef>False</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@jax.jit</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fn</span>(W, x):
+</span></span><span style=display:flex><span>    y <span style=color:#f92672>=</span> x <span style=color:#f92672>@</span> W
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> config[<span style=color:#e6db74>&#39;relu&#39;</span>]:
+</span></span><span style=display:flex><span>        y <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>nn<span style=color:#f92672>.</span>relu(y)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> y
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>W, x <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>ones((<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>2</span>)), jnp<span style=color:#f92672>.</span>ones((<span style=color:#ae81ff>2</span>,))
+</span></span><span style=display:flex><span>jax<span style=color:#f92672>.</span>make_jaxpr(fn)(W, x)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>{ <span style=color:#66d9ef>lambda</span> ; a:f32[<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>2</span>] b:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    c:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> pjit[
+</span></span><span style=display:flex><span>      jaxpr<span style=color:#f92672>=</span>{ <span style=color:#66d9ef>lambda</span> ; d:f32[<span style=color:#ae81ff>2</span>,<span style=color:#ae81ff>2</span>] e:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>          f:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> dot_general[dimension_numbers<span style=color:#f92672>=</span>(([<span style=color:#ae81ff>0</span>], [<span style=color:#ae81ff>0</span>]), ([], []))] e d
+</span></span><span style=display:flex><span>        <span style=color:#f92672>in</span> (f,) }
+</span></span><span style=display:flex><span>      name<span style=color:#f92672>=</span>fn
+</span></span><span style=display:flex><span>    ] a b
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (c,) }
+</span></span></code></pre></div><p>You can see in the <code>jaxpr</code> that only the <code>dot_general</code> is present in the graph.
+The <code>relu</code> function was not traced as the Python interpreter didn&rsquo;t execute the
+body of the <code>if</code> statement, and hence didn&rsquo;t add it to the graph. It is
+important to emphasise that <strong>only a single conditional branch was compiled</strong>:
+there is no branching in the final graph.</p><blockquote><p>Arguably, there is a case for using <code>static_argnums</code> if you expect to use
+both options in a single execution of your program. However if your <code>config</code>
+object won&rsquo;t change, I feel the above pattern is fine!</p></blockquote><blockquote><p>It is possible to add conditionals in the compiled function. However,
+Python-level conditionals are only used when tracing. The branch that is traversed will be unrolled in the traced graph. Special functions
+(shown later) must be used to add conditionals in the final compiled
+function.</p></blockquote><p>The second point can be useful if we have some object we know won&rsquo;t change, for
+example a pretrained machine learning model that we just want to run fast
+inference on:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>bert <span style=color:#f92672>=</span> <span style=color:#f92672>...</span> <span style=color:#75715e># some pretrained JAX BERT model that we can call</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@jax.jit</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fn</span>(x):
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> bert(x)
+</span></span></code></pre></div><p>The above would work, but changes to <code>bert</code> would not be reflected in the
+compiled function until the shape of <code>x</code> changes. We could even set <code>bert</code> to
+be <code>None</code> following the first call and <code>fn</code> would still work, provided we used
+the same input shape.</p><p>In general, I feel the emphasis on making things functionally pure is a bit
+overstated in JAX. In my (perhaps misinformed) opinion, it is better to simply
+understand the differences between trace-time and compiled behaviour, and when
+they will be triggered. Python is ridiculously expressive and making use of
+that is part of the power of JAX, so it would be a shame to needlessly restrict
+that.</p><h2 id=conditionals-and-loops-in-compiled-functions>Conditionals and Loops in Compiled Functions<a hidden class=anchor aria-hidden=true href=#conditionals-and-loops-in-compiled-functions>#</a></h2><p>I hope now that you have developed a bit of an intuition into the difference
+between trace-time and compiled behaviour. But if not, here is a summary:</p><ul><li>Tracing occurs when a jit compiled function encounters a set of input shapes
+and static argument values that it hasn&rsquo;t encountered yet. In such cases, JAX
+relies on the Python interpreter to step through the function. All normal
+Python rules apply in this case. The traced graph will <strong>contain traceable
+operations that were encountered during this specific instance of tracing</strong>.</li><li>Calling the compiled version occurs when a jit compiled function is called
+and the set of input shapes and static argument values match one in the
+cache. In such cases, <strong>behaviour is simply calling the compiled function and
+nothing more</strong>.</li></ul><p>This behaviour is powerful, as it allows us to define what we want to happen in
+expressive Python, and rely on fast, optimised code for the actual execution.
+However, it does come with some issues:</p><ul><li>We can only trace one conditional path per combination of input shapes and
+static values.</li><li>As tracing steps through op-by-op, loops will simply be unrolled, rather than
+being loops in the final compiled function.</li></ul><p>Sometimes these properties are attractive. The first can be used to simply
+disable branches we don&rsquo;t care about – almost like compile time flags in C. The
+second is useful for small numbers of loop iterations where cross-iteration
+dependencies can be optimised. However, sometimes this works against us.</p><p>We&rsquo;ve already seen one example of this, recall <code>stupid_fn</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>stupid_fn</span>(x):
+</span></span><span style=display:flex><span>  y <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>copy(x)
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>for</span> _ <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>1000</span>):
+</span></span><span style=display:flex><span>    x <span style=color:#f92672>=</span> x <span style=color:#f92672>*</span> x
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> y
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>jax<span style=color:#f92672>.</span>make_jaxpr(stupid_fn)(jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>1.1</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1.1</span>]))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>Out: { <span style=color:#66d9ef>lambda</span> ; a:f32[<span style=color:#ae81ff>4</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    b:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> copy a
+</span></span><span style=display:flex><span>    c:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul a a
+</span></span><span style=display:flex><span>    d:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul c c
+</span></span><span style=display:flex><span>    e:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul d d
+</span></span><span style=display:flex><span>    f:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul e e
+</span></span><span style=display:flex><span>    <span style=color:#f92672>...</span> <span style=color:#f92672>&lt;</span>truncated<span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>    bmh:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmg bmg
+</span></span><span style=display:flex><span>    bmi:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmh bmh
+</span></span><span style=display:flex><span>    bmj:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmi bmi
+</span></span><span style=display:flex><span>    bmk:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmj bmj
+</span></span><span style=display:flex><span>    bml:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmk bmk
+</span></span><span style=display:flex><span>    bmm:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bml bml
+</span></span><span style=display:flex><span>    _:f32[<span style=color:#ae81ff>4</span>] <span style=color:#f92672>=</span> mul bmm bmm
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (b,) }
+</span></span></code></pre></div><p>The output is egregiously long. During tracing the entire loop gets unrolled.
+Not only is this annoying to look at, but it makes optimising the graph take a
+long time, making the first call to the function lengthy to complete. <strong>JAX isn&rsquo;t
+aware we are in a for-loop context</strong>, it simply just takes the operations as they
+come and adds it to the graph.</p><p>Luckily, JAX exposes control flow primitives as part of its <code>jax.lax</code>
+submodule:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>less_stupid_fn</span>(x):
+</span></span><span style=display:flex><span>    y <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>copy(x)
+</span></span><span style=display:flex><span>    x <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>lax<span style=color:#f92672>.</span>fori_loop(start<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>, stop<span style=color:#f92672>=</span><span style=color:#ae81ff>1000</span>, body_fun<span style=color:#f92672>=</span><span style=color:#66d9ef>lambda</span> i, x: x <span style=color:#f92672>*</span> x, init_val<span style=color:#f92672>=</span>x)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> y
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>jax<span style=color:#f92672>.</span>make_jaxpr(less_stupid_fn)(jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>1.1</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1.1</span>]))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>{ <span style=color:#66d9ef>lambda</span> ; a:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    b:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> copy a
+</span></span><span style=display:flex><span>    _:i32[] _:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> scan[
+</span></span><span style=display:flex><span>      jaxpr<span style=color:#f92672>=</span>{ <span style=color:#66d9ef>lambda</span> ; c:i32[] d:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>          e:i32[] <span style=color:#f92672>=</span> add c <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>          f:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> mul d d
+</span></span><span style=display:flex><span>        <span style=color:#f92672>in</span> (e, f) }
+</span></span><span style=display:flex><span>      length<span style=color:#f92672>=</span><span style=color:#ae81ff>1000</span>
+</span></span><span style=display:flex><span>      linear<span style=color:#f92672>=</span>(<span style=color:#66d9ef>False</span>, <span style=color:#66d9ef>False</span>)
+</span></span><span style=display:flex><span>      num_carry<span style=color:#f92672>=</span><span style=color:#ae81ff>2</span>
+</span></span><span style=display:flex><span>      num_consts<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>      reverse<span style=color:#f92672>=</span><span style=color:#66d9ef>False</span>
+</span></span><span style=display:flex><span>      unroll<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>    ] <span style=color:#ae81ff>0</span> a
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (b,) }
+</span></span></code></pre></div><p>In the above example, we convert our Python for-loop into <code>jax.lax.fori_loop</code>.
+This takes arguments for the (integer) start and end of the for loop range, as
+well as the function to execute in the body and the starting input value. The
+return value of <code>body_fun</code> must be the same type and shape as <code>init_val</code> and the
+same type and shape across all iterations. In addition, the input to <code>body_fun</code>
+also takes the current loop index.</p><p>Taking a look at the <code>jaxpr</code>, we can see the massive unrolling of operations has
+been replaced with a much more compact version, using the <code>scan</code> primitive.
+This essentially executes the <code>body_fun</code> and fixed number of times, carrying
+state from one iteration to the next. <code>scan</code> compiles <code>body_fun</code> (like <code>jax.jit</code>
+does) and hence needs a fixed input and output shape.</p><blockquote><p>If the number of loops was not static, then we would see a while loop
+primitive instead! There is no for-loop primitive, it is just implemented in
+terms of <code>scan</code> or <code>while</code>.</p></blockquote><p>Let&rsquo;s compiled our less stupid function <code>less_stupid_fn</code> and see if we get the
+same code out. Even with our fancy primitive functions, XLA should optimise the
+function in the same way.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>print(jax<span style=color:#f92672>.</span>jit(less_stupid_fn)<span style=color:#f92672>.</span>lower(x)<span style=color:#f92672>.</span>compile()<span style=color:#f92672>.</span>as_text())
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>HloModule jit_less_stupid_fn, entry_computation_layout<span style=color:#f92672>=</span>{(f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>})<span style=color:#f92672>-&gt;</span>f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>}}, allow_spmd_sharding_propagation_to_output<span style=color:#f92672>=</span>{true}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ENTRY <span style=color:#f92672>%</span>main<span style=color:#ae81ff>.2</span> (Arg_0<span style=color:#ae81ff>.1</span>: f32[<span style=color:#ae81ff>2</span>]) <span style=color:#f92672>-&gt;</span> f32[<span style=color:#ae81ff>2</span>] {
+</span></span><span style=display:flex><span>  <span style=color:#f92672>%</span>Arg_0<span style=color:#ae81ff>.1</span> <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} parameter(<span style=color:#ae81ff>0</span>), sharding<span style=color:#f92672>=</span>{replicated}
+</span></span><span style=display:flex><span>  ROOT <span style=color:#f92672>%</span>copy <span style=color:#f92672>=</span> f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} copy(f32[<span style=color:#ae81ff>2</span>]{<span style=color:#ae81ff>0</span>} <span style=color:#f92672>%</span>Arg_0<span style=color:#ae81ff>.1</span>)
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>And indeed, we get a single copy operation again.</p><p>A similar function exists for while loops named <code>jax.lax.while_loop</code>. An equivalent to <code>less_stupid_fn</code> would be:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>less_stupid_fn</span>(x):
+</span></span><span style=display:flex><span>    y <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>copy(x)
+</span></span><span style=display:flex><span>    x <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>lax<span style=color:#f92672>.</span>while_loop(
+</span></span><span style=display:flex><span>        cond_fun<span style=color:#f92672>=</span><span style=color:#66d9ef>lambda</span> ix: ix[<span style=color:#ae81ff>0</span>] <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>1000</span>, 
+</span></span><span style=display:flex><span>        body_fun<span style=color:#f92672>=</span><span style=color:#66d9ef>lambda</span> ix: (ix[<span style=color:#ae81ff>0</span>]<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>, ix[<span style=color:#ae81ff>1</span>]<span style=color:#f92672>*</span>ix[<span style=color:#ae81ff>1</span>]),
+</span></span><span style=display:flex><span>        init_val<span style=color:#f92672>=</span>(<span style=color:#ae81ff>0</span>, x)
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> y
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>jax<span style=color:#f92672>.</span>make_jaxpr(less_stupid_fn)(jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>1.1</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1.1</span>]))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>{ <span style=color:#66d9ef>lambda</span> ; a:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    b:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> copy a
+</span></span><span style=display:flex><span>    _:i32[] _:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> <span style=color:#66d9ef>while</span>[
+</span></span><span style=display:flex><span>      body_jaxpr<span style=color:#f92672>=</span>{ <span style=color:#66d9ef>lambda</span> ; c:i32[] d:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>          e:i32[] <span style=color:#f92672>=</span> add c <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>          f:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> mul d d
+</span></span><span style=display:flex><span>        <span style=color:#f92672>in</span> (e, f) }
+</span></span><span style=display:flex><span>      body_nconsts<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>      cond_jaxpr<span style=color:#f92672>=</span>{ <span style=color:#66d9ef>lambda</span> ; g:i32[] h:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let i:bool[] <span style=color:#f92672>=</span> lt g <span style=color:#ae81ff>1000</span> <span style=color:#f92672>in</span> (i,) }
+</span></span><span style=display:flex><span>      cond_nconsts<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>    ] <span style=color:#ae81ff>0</span> a
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (b,) }
+</span></span></code></pre></div><p>Where <code>body_fun</code> will continue to be executed so long as <code>cond_fun</code> returns
+<code>True</code>, carrying state between iterations and starting with state <code>init_val</code>.</p><p>These loops aren&rsquo;t as pretty as Python-level equivalents, but they get the job
+done. Remember that it isn&rsquo;t possible to do cross-iteration optimisation with
+these loop primitives as <code>body_fun</code> gets compiled as its own unit. The same
+rules apply as with <code>jax.jit</code>: make <code>body_fun</code> as large as possible to
+give maximum context to XLA.</p><p>If the number of loop iterations is <strong>small and constant</strong> it may be worth using
+Python loops instead. For example, you may use a <code>fori_loop</code> to wrap your whole
+diffusion model during inference, but a regular loop training an unrolled model
+for only two, fixed steps.</p><p>For conditionals in compiled functions, we have a lot of options available to us
+in JAX. I won&rsquo;t enumerate them all here, there is a nice summary in the JAX docs
+<a href=https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html#cond>here</a>.
+The function closest to the behaviour of a regular if statement is <code>jax.lax.cond</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#a6e22e>@jax.jit</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>cond_fn</span>(x):
+</span></span><span style=display:flex><span>  pred <span style=color:#f92672>=</span> jnp<span style=color:#f92672>.</span>abs(x<span style=color:#f92672>.</span>max() <span style=color:#f92672>-</span> x<span style=color:#f92672>.</span>min()) <span style=color:#f92672>&lt;=</span> <span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> jax<span style=color:#f92672>.</span>lax<span style=color:#f92672>.</span>cond(pred, <span style=color:#66d9ef>lambda</span> x: x, <span style=color:#66d9ef>lambda</span> x: x <span style=color:#f92672>/</span> <span style=color:#ae81ff>2</span>, x)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(cond_fn(jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>0.1</span>, <span style=color:#ae81ff>0.2</span>])))
+</span></span><span style=display:flex><span>print(cond_fn(jnp<span style=color:#f92672>.</span>array([<span style=color:#f92672>-</span><span style=color:#ae81ff>0.5</span>, <span style=color:#ae81ff>0.5</span>])))
+</span></span><span style=display:flex><span>print(cond_fn(jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>1.0</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0</span>])))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: [<span style=color:#ae81ff>0.1</span> <span style=color:#ae81ff>0.2</span>]
+</span></span><span style=display:flex><span>[<span style=color:#f92672>-</span><span style=color:#ae81ff>0.5</span>  <span style=color:#ae81ff>0.5</span>]
+</span></span><span style=display:flex><span>[ <span style=color:#ae81ff>0.5</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>0.5</span>]
+</span></span></code></pre></div><p><code>jax.lax.cond</code> takes a single boolean value, two functions and the operands to
+the functions. The first function will execute using <code>operands</code> if <code>pred</code> is
+<code>True</code> and the second if <code>pred</code> is <code>False</code>. In the above function, we check the
+absolute difference between the minimum and maximum values of <code>x</code>. If they are
+less than or equal to <code>1.0</code> the array is returned unchanged, else the array gets
+halved.</p><p>We can print the <code>jaxpr</code> and see that both branches do get traced:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>jax<span style=color:#f92672>.</span>make_jaxpr(cond_fn)(jnp<span style=color:#f92672>.</span>array([<span style=color:#ae81ff>1.0</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1.0</span>]))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>{ <span style=color:#66d9ef>lambda</span> ; a:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>    b:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> pjit[
+</span></span><span style=display:flex><span>      jaxpr<span style=color:#f92672>=</span>{ <span style=color:#66d9ef>lambda</span> ; c:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let
+</span></span><span style=display:flex><span>          d:f32[] <span style=color:#f92672>=</span> reduce_max[axes<span style=color:#f92672>=</span>(<span style=color:#ae81ff>0</span>,)] c
+</span></span><span style=display:flex><span>          e:f32[] <span style=color:#f92672>=</span> reduce_min[axes<span style=color:#f92672>=</span>(<span style=color:#ae81ff>0</span>,)] c
+</span></span><span style=display:flex><span>          f:f32[] <span style=color:#f92672>=</span> sub d e
+</span></span><span style=display:flex><span>          g:f32[] <span style=color:#f92672>=</span> abs f
+</span></span><span style=display:flex><span>          h:bool[] <span style=color:#f92672>=</span> le g <span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>          i:i32[] <span style=color:#f92672>=</span> convert_element_type[new_dtype<span style=color:#f92672>=</span>int32 weak_type<span style=color:#f92672>=</span><span style=color:#66d9ef>False</span>] h
+</span></span><span style=display:flex><span>          j:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> cond[
+</span></span><span style=display:flex><span>            branches<span style=color:#f92672>=</span>(
+</span></span><span style=display:flex><span>              { <span style=color:#66d9ef>lambda</span> ; k:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let l:f32[<span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> div k <span style=color:#ae81ff>2.0</span> <span style=color:#f92672>in</span> (l,) }
+</span></span><span style=display:flex><span>              { <span style=color:#66d9ef>lambda</span> ; m:f32[<span style=color:#ae81ff>2</span>]<span style=color:#f92672>.</span> let  <span style=color:#f92672>in</span> (m,) }
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>            linear<span style=color:#f92672>=</span>(<span style=color:#66d9ef>False</span>,)
+</span></span><span style=display:flex><span>          ] i c
+</span></span><span style=display:flex><span>        <span style=color:#f92672>in</span> (j,) }
+</span></span><span style=display:flex><span>      name<span style=color:#f92672>=</span>cond_fn
+</span></span><span style=display:flex><span>    ] a
+</span></span><span style=display:flex><span>  <span style=color:#f92672>in</span> (b,) }
+</span></span></code></pre></div><p>The equivalent for <code>n</code> branches (rather than just the implied two with
+<code>jax.lax.cond</code>) is <code>jax.lax.switch</code>. With this, we can implement a highly
+performant <code>is_even</code> function!</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#a6e22e>@jax.jit</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>is_even_fast</span>(x):
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> jax<span style=color:#f92672>.</span>lax<span style=color:#f92672>.</span>switch(x, [
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>True</span>,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>False</span>,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>True</span>,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>False</span>,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>True</span>,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>False</span>,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>True</span>,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>False</span>,
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>True</span>,
+</span></span><span style=display:flex><span>    <span style=color:#f92672>...</span> <span style=color:#f92672>&lt;</span>truncated<span style=color:#f92672>&gt;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>lambda</span>: <span style=color:#66d9ef>False</span>
+</span></span><span style=display:flex><span>  ])
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>is_even_fast(<span style=color:#ae81ff>123512</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: Array(<span style=color:#66d9ef>True</span>, dtype<span style=color:#f92672>=</span>bool)
+</span></span></code></pre></div><blockquote><p>Do not look at the <code>jaxpr</code> of the above function.</p></blockquote><h2 id=briefly-pytrees>Briefly, PyTrees<a hidden class=anchor aria-hidden=true href=#briefly-pytrees>#</a></h2><p>You may have noticed that so far, all the functions we have compiled using
+<code>jax.jit</code> only take flat structures like single arrays or values as inputs. This
+poses a problem if we later want to use JAX for massive machine learning
+problems. Are we going to write one-by-one all the parameter arrays of GPT-3?</p><p>In reality, we can use arbitrary <strong>PyTrees</strong> as inputs, intermediates, and
+outputs to our jit compiled functions.</p><p>The formal definition of a PyTree is &ldquo;a tree-like structure built out of
+container-like Python objects. Classes are considered container-like if they are
+in the PyTree registry&rdquo;. By default, the PyTree registry includes the classes
+<code>list</code>, <code>tuple</code>, and <code>dict</code>. Additionally, any object <em>not</em> in the registry is
+considered a leaf (i.e: a single element or single array). A PyTree can contain
+other PyTrees, forming a nested structure, and leaves.</p><blockquote><p>It is possible to register your own custom classes to the PyTree registry, but
+this is outside the scope of this blog.</p></blockquote><p>When calling a jit function, JAX will check for an existing cached compiled
+function with the <strong>same PyTree structure, leaf shapes, and static argument
+values</strong>. If all this matches, the compiled function will be reused. Like
+keeping the argument shapes the same as much as possible in order to use cached
+functions, you should aim to keep the PyTree structure the same.</p><p>Let&rsquo;s have a concrete example, implementing the forward pass of a simple
+multi-layer perceptron. First, we will build a list of dictionaries. Each
+dictionary in the list represents one layer, and the dictionary stores the
+weights and biases for that particular layer:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>dims <span style=color:#f92672>=</span> [<span style=color:#ae81ff>784</span>, <span style=color:#ae81ff>64</span>, <span style=color:#ae81ff>10</span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>key, <span style=color:#f92672>*</span>subkeys <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>split(key, len(dims))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>params <span style=color:#f92672>=</span> [
+</span></span><span style=display:flex><span>    {
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#39;W&#39;</span>: jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>normal(w_key, (out_dim, in_dim)),
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#39;b&#39;</span>: jnp<span style=color:#f92672>.</span>zeros((out_dim,))
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> w_key, in_dim, out_dim <span style=color:#f92672>in</span> zip(subkeys, dims[:<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>], dims[<span style=color:#ae81ff>1</span>:])
+</span></span><span style=display:flex><span>]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>jax<span style=color:#f92672>.</span>tree_util<span style=color:#f92672>.</span>tree_structure(params), jax<span style=color:#f92672>.</span>tree_util<span style=color:#f92672>.</span>tree_map(<span style=color:#66d9ef>lambda</span> l: str(l<span style=color:#f92672>.</span>shape), params)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: 
+</span></span><span style=display:flex><span>(PyTreeDef([{<span style=color:#e6db74>&#39;W&#39;</span>: <span style=color:#f92672>*</span>, <span style=color:#e6db74>&#39;b&#39;</span>: <span style=color:#f92672>*</span>}, {<span style=color:#e6db74>&#39;W&#39;</span>: <span style=color:#f92672>*</span>, <span style=color:#e6db74>&#39;b&#39;</span>: <span style=color:#f92672>*</span>}]),
+</span></span><span style=display:flex><span>[{<span style=color:#e6db74>&#39;W&#39;</span>: <span style=color:#e6db74>&#39;(64, 784)&#39;</span>, <span style=color:#e6db74>&#39;b&#39;</span>: <span style=color:#e6db74>&#39;(64,)&#39;</span>}, {<span style=color:#e6db74>&#39;W&#39;</span>: <span style=color:#e6db74>&#39;(10, 64)&#39;</span>, <span style=color:#e6db74>&#39;b&#39;</span>: <span style=color:#e6db74>&#39;(10,)&#39;</span>}])
+</span></span></code></pre></div><p>The variable <code>params</code> fits the definition of a PyTree. The outputs of the cell
+are the structure of the PyTree and another PyTree showing the shapes of the
+leaves of <code>params</code>. Let&rsquo;s define the forward pass as function that takes the
+PyTree <code>params</code> and an array <code>x</code> as its inputs, and decorate it with <code>jax.jit</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#a6e22e>@jax.jit</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>feed_forward</span>(params, x):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> p <span style=color:#f92672>in</span> params:
+</span></span><span style=display:flex><span>        x <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>nn<span style=color:#f92672>.</span>tanh(p[<span style=color:#e6db74>&#39;W&#39;</span>] <span style=color:#f92672>@</span> x <span style=color:#f92672>+</span> p[<span style=color:#e6db74>&#39;b&#39;</span>])
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> x
+</span></span><span style=display:flex><span>    
+</span></span><span style=display:flex><span>key, x_key <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>split(key)
+</span></span><span style=display:flex><span>feed_forward(params, jax<span style=color:#f92672>.</span>random<span style=color:#f92672>.</span>normal(x_key, (dims[<span style=color:#ae81ff>0</span>],)))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>Array([<span style=color:#f92672>-</span><span style=color:#ae81ff>1.</span>        , <span style=color:#f92672>-</span><span style=color:#ae81ff>0.93132854</span>, <span style=color:#f92672>-</span><span style=color:#ae81ff>1.</span>        , <span style=color:#f92672>-</span><span style=color:#ae81ff>0.99993926</span>,  <span style=color:#ae81ff>0.9998755</span> ,
+</span></span><span style=display:flex><span>       <span style=color:#f92672>-</span><span style=color:#ae81ff>0.9970358</span> , <span style=color:#f92672>-</span><span style=color:#ae81ff>0.8498685</span> ,  <span style=color:#ae81ff>1.</span>        , <span style=color:#f92672>-</span><span style=color:#ae81ff>0.9999984</span> ,  <span style=color:#ae81ff>1.</span>        ],      dtype<span style=color:#f92672>=</span>float32)
+</span></span></code></pre></div><blockquote><p>If you&rsquo;ve ever printed a PyTorch model <code>model.state_dict()</code> before, you should
+be able to see how we can achieve something similar by solely using nested
+dictionaries. I just used a list in the above example to demonstrate how we can
+nest arbitrary combinations of containers, so long as they are in the PyTree
+registry.</p></blockquote><p>In the simplest case, PyTrees are simply nice containers to help us package
+together inputs to our functions. They can get much more involved and complex
+than that, but I haven&rsquo;t delved deep into the topic yet. For another time I
+guess.</p><h2 id=function-transformations>Function Transformations<a hidden class=anchor aria-hidden=true href=#function-transformations>#</a></h2><p>It can&rsquo;t really be a JAX blog post without mentioning function transformations. One
+of the first things you see on the Github repository for JAX is &ldquo;Dig [&mldr;]
+deeper, and you&rsquo;ll see that JAX is really an extensible system for composable
+function transformations&rdquo;. I&rsquo;ve begun tinkering with this system myself but not
+enough to write in depth on it, though I suspect it would mandate an entirely
+separate post to do it justice.</p><blockquote><p>Just to give you a taste of what is possible, see <a href=https://github.com/davisyoshida/lorax>this
+repository</a> that lets you add LoRA to
+arbitrary JAX functions!</p></blockquote><p>A function transformation is simply a function that takes another function as
+input, and returns yet another function. Hey, a function transformation
+transforms functions.</p><p>JAX comes with a number of inbuilt function transformations that must be
+mentioned. You&rsquo;ve already met one in the form of <code>jax.jit</code>. Two others are the
+<code>jax.grad</code> and <code>jax.value_and_grad</code> transforms, forming the auto-differentiation
+component of JAX. Autodiff is an essential ingredient for training machine
+learning models.</p><p>In a nutshell, <code>jax.grad</code> takes in a function <code>f</code>, and returns another function
+that computes the derivative of <code>f</code>. <code>jax.value_and_grad</code> returns a function
+that in turn returns a tuple <code>(value, grad)</code> where <code>value</code> is the output of <code>f(x)</code>
+and <code>grad</code> is the output of <code>jax.grad(f)(x)</code>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fn</span>(x):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>2</span><span style=color:#f92672>*</span>x <span style=color:#75715e># derivative is 2 everywhere</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(fn(<span style=color:#ae81ff>5.</span>))
+</span></span><span style=display:flex><span>print(jax<span style=color:#f92672>.</span>grad(fn)(<span style=color:#ae81ff>5.</span>))
+</span></span><span style=display:flex><span>print(jax<span style=color:#f92672>.</span>value_and_grad(fn)(<span style=color:#ae81ff>5.</span>))
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span><span style=color:#ae81ff>10.0</span>
+</span></span><span style=display:flex><span><span style=color:#ae81ff>2.0</span>
+</span></span><span style=display:flex><span>(Array(<span style=color:#ae81ff>10.</span>, dtype<span style=color:#f92672>=</span>float32, weak_type<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>), Array(<span style=color:#ae81ff>2.</span>, dtype<span style=color:#f92672>=</span>float32, weak_type<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>))
+</span></span></code></pre></div><p>By default, the autodiff functions will take the gradient with respect to the
+first function argument, and hence the output of the new function <code>jax.grad(f)</code>
+will be of <strong>the same shape and structure as the first argument of <code>f</code></strong>:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>dummy_loss_fn</span>(params, x):
+</span></span><span style=display:flex><span>    y <span style=color:#f92672>=</span> feed_forward(params, x)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> y<span style=color:#f92672>.</span>sum()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>grad_loss_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>grad(dummy_loss_fn)
+</span></span><span style=display:flex><span>grads <span style=color:#f92672>=</span> grad_loss_fn(params, jnp<span style=color:#f92672>.</span>zeros(dims[<span style=color:#ae81ff>0</span>]))
+</span></span><span style=display:flex><span>jax<span style=color:#f92672>.</span>tree_util<span style=color:#f92672>.</span>tree_structure(grads)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: PyTreeDef([{<span style=color:#e6db74>&#39;W&#39;</span>: <span style=color:#f92672>*</span>, <span style=color:#e6db74>&#39;b&#39;</span>: <span style=color:#f92672>*</span>}, {<span style=color:#e6db74>&#39;W&#39;</span>: <span style=color:#f92672>*</span>, <span style=color:#e6db74>&#39;b&#39;</span>: <span style=color:#f92672>*</span>}])
+</span></span></code></pre></div><blockquote><p>The above is a dummy example where we package together a model forward pass and
+&ldquo;loss&rdquo; computation in a single function. We then call <code>jax.grad</code> on it to get
+gradients with respect to the model parameters. This is a common pattern in JAX
+training loops, usually followed by calculating the parameter updates and
+computing the new parameters. In a follow up post I will make on Flax, you
+will see this pattern crop up a lot.</p></blockquote><p>We can change this default behaviour of selecting the first argument by
+specifying the <code>argnums</code> parameter to the index of the argument we want to
+differentiate with respect to. We can even specify multiple arguments by passing
+a sequence of integers.</p><p>We can even apply <code>grad</code> to a function that already computes the first
+derivative, obtaining a function that computes the second derivative:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>fn</span>(x):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>2</span> <span style=color:#f92672>*</span> x<span style=color:#f92672>**</span><span style=color:#ae81ff>3</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>x <span style=color:#f92672>=</span> <span style=color:#ae81ff>1.0</span>
+</span></span><span style=display:flex><span>grad_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>grad(fn)
+</span></span><span style=display:flex><span>grad_grad_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>grad(grad_fn)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;d0x: </span><span style=color:#e6db74>{</span>fn(x)<span style=color:#e6db74>}</span><span style=color:#e6db74>, d1x: </span><span style=color:#e6db74>{</span>grad_fn(x)<span style=color:#e6db74>}</span><span style=color:#e6db74>, d2x: </span><span style=color:#e6db74>{</span>grad_grad_fn(x)<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out: d0x: <span style=color:#ae81ff>2.0</span>, d1x: <span style=color:#ae81ff>6.0</span>, d2x: <span style=color:#ae81ff>12.0</span>
+</span></span></code></pre></div><p>The above behaviour is very hard to achieve in other machine learning frameworks
+such as PyTorch or Tensorflow. But in JAX, thanks to its emphasis on function
+transformations, it is trivial to achieve.</p><p>Sometimes, we want to compute the gradient of a function that also outputs
+auxilliary data. A common example is a loss function that also outputs other
+metrics like accuracy. We want to exclude this auxilliary data from gradient
+calculations, which can be achieved by passing <code>has_aux=True</code> to <code>grad</code>. We do this in the following example, to return both our fake &ldquo;loss&rdquo; and the output of <code>feed_forward</code> itself, whilst also computing the gradient with respect to <code>params</code>! A lot going on!</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>dummy_loss_fn</span>(params, x):
+</span></span><span style=display:flex><span>    y <span style=color:#f92672>=</span> feed_forward(params, x)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> y<span style=color:#f92672>.</span>sum(), y
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>grad_loss_fn <span style=color:#f92672>=</span> jax<span style=color:#f92672>.</span>value_and_grad(dummy_loss_fn, has_aux<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)
+</span></span><span style=display:flex><span>values, grads <span style=color:#f92672>=</span> grad_loss_fn(params, jnp<span style=color:#f92672>.</span>zeros(dims[<span style=color:#ae81ff>0</span>]))
+</span></span><span style=display:flex><span>values, jax<span style=color:#f92672>.</span>tree_util<span style=color:#f92672>.</span>tree_structure(grads)
+</span></span><span style=display:flex><span><span style=color:#f92672>===</span>
+</span></span><span style=display:flex><span>Out:
+</span></span><span style=display:flex><span>((Array(<span style=color:#ae81ff>0.</span>, dtype<span style=color:#f92672>=</span>float32),
+</span></span><span style=display:flex><span>  Array([<span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>, <span style=color:#ae81ff>0.</span>], dtype<span style=color:#f92672>=</span>float32)),
+</span></span><span style=display:flex><span> PyTreeDef([{<span style=color:#e6db74>&#39;W&#39;</span>: <span style=color:#f92672>*</span>, <span style=color:#e6db74>&#39;b&#39;</span>: <span style=color:#f92672>*</span>}, {<span style=color:#e6db74>&#39;W&#39;</span>: <span style=color:#f92672>*</span>, <span style=color:#e6db74>&#39;b&#39;</span>: <span style=color:#f92672>*</span>}]))
+</span></span></code></pre></div><p>Like I mentioned earlier, <strong>JAX transforms are composable and can be combined
+together to generate complex behaviour</strong>. We&rsquo;ve already seen an example of this by
+applying <code>jax.grad</code> twice to get the second derivative. Another example is
+combining <code>jax.jit</code> and <code>jax.grad</code> to produce a jit compiled autodiff function!</p><p>At risk of becoming an &ldquo;autodiff&rdquo; section rather than a function transformation
+section, I should mention other transformations. A particularly famous one is
+<code>jax.vmap</code> which simply converts a function on a single input to one that can
+accept batches of inputs.</p><blockquote><p>Personally I haven&rsquo;t found much use for this as I am too used to writing
+batched code anyway. But your mileage may vary.</p></blockquote><p>A more powerful transformation is <code>jax.pmap</code> which converts a function into one
+that can be parallelised across
+<strong>multiple accelerators</strong>, usually in a single-program, multiple-data (data
+parallel) fashion. A big pull to using JAX is its inbuilt and easy support for
+parallelism using <code>pmap</code> and other &ldquo;<code>p</code>&rdquo; functions. This is a topic in and of itself
+though, so I leave exploring this to future blogs.</p><h2 id=conclusion>Conclusion<a hidden class=anchor aria-hidden=true href=#conclusion>#</a></h2><p>In this lengthy post, I&rsquo;ve introduced JAX and drilled deep into some key
+concepts within it, as well as share some highly opinionated takes. I&rsquo;ve yet
+demonstrate a full machine learning training loop in JAX but I will cover this
+using high level libraries like Flax and Optax in later posts.</p><p>If I was to summarise the takeaways from this post, they would be:</p><ul><li><code>jax.jit</code> is very powerful and should be utilised wherever possible in the widest context.</li><li>Take care to understand the differences between trace-time and compiled
+behaviour.</li><li>Most machine learning code can be rewritten in a static way, and should be done so as much as possible to make the most of XLA.</li></ul><p>There is much more to JAX than that, but I think this is a good set of points
+for a foundational understanding that can be built upon later to great effect.</p><p>Arguably, you don&rsquo;t need this long of an introduction to JAX to start writing
+training loops and this wasn&rsquo;t really my original intention. However, as I was
+writing I found it quite fun to dig deep into the foundations of JAX and its
+behaviour, and I hope this exploration is useful to others also starting to
+learn JAX, or even those with more experience. If it wasn&rsquo;t your cup of tea, I
+promise that future entries will be much more practical.</p><p>If you liked this post please consider following me <a href=https://twitter.com/alexfmckinney>on
+Twitter</a> or <a href=https://afmck.in/index.xml>use this RSS
+feed</a> for notifications on future ramblings about
+machine learning and other topics. Alternatively you can navigate to the root of
+this website and repeatedly refresh until something happens. Thank you for
+reading this far and I hope you found it useful!</p></div><footer class=post-footer><ul class=post-tags></ul></footer></article></main><footer class=footer><span>&copy; 2023 <a href=https://afmck.in>Alex McKinney</a></span>
+<span>Powered by
+<a href=https://gohugo.io/ rel="noopener noreferrer" target=_blank>Hugo</a> &
+        <a href=https://git.io/hugopapermod rel=noopener target=_blank>PaperMod</a>
+<a href=/cheems rel="noopener noreferrer">🐕️</a></span></footer><a href=#top aria-label="go to top" title="Go to Top (Alt + G)" class=top-link id=top-link accesskey=g><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentcolor"><path d="M12 6H0l6-6z"/></svg></a><script>let menu=document.getElementById("menu");menu&&(menu.scrollLeft=localStorage.getItem("menu-scroll-position"),menu.onscroll=function(){localStorage.setItem("menu-scroll-position",menu.scrollLeft)}),document.querySelectorAll('a[href^="#"]').forEach(e=>{e.addEventListener("click",function(e){e.preventDefault();var t=this.getAttribute("href").substr(1);window.matchMedia("(prefers-reduced-motion: reduce)").matches?document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView():document.querySelector(`[id='${decodeURIComponent(t)}']`).scrollIntoView({behavior:"smooth"}),t==="top"?history.replaceState(null,null," "):history.pushState(null,null,`#${t}`)})})</script><script>var mybutton=document.getElementById("top-link");window.onscroll=function(){document.body.scrollTop>800||document.documentElement.scrollTop>800?(mybutton.style.visibility="visible",mybutton.style.opacity="1"):(mybutton.style.visibility="hidden",mybutton.style.opacity="0")}</script><script>document.getElementById("theme-toggle").addEventListener("click",()=>{document.body.className.includes("dark")?(document.body.classList.remove("dark"),localStorage.setItem("pref-theme","light")):(document.body.classList.add("dark"),localStorage.setItem("pref-theme","dark"))})</script></body></html>
