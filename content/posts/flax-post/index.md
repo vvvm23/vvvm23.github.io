@@ -19,8 +19,8 @@ At the end of this post, we will have implemented and trained a very simple **cl
 > I am not aware of other libraries that do the same thing as Optax, but there are a lot of neural network APIs built on top of JAX, such as [Equinox](https://github.com/patrick-kidger/equinox/) by [Patrik Kidger](https://kidger.site/), and [Haiku](https://github.com/deepmind/dm-haiku) developed at Deepmind. I simply picked Flax here in order to have perfect interoperability with Huggingface models during the [Huggingface JAX Diffusers sprint](https://github.com/huggingface/community-events/tree/main/jax-controlnet-sprint).
 
 ## Neural Network API with Flax
-- High level pattern of doing a training loop in JAX
-- Which part does Flax address?
+- High level pattern of doing a training loop in JAX X
+- Which part does Flax address? X
 - The ways of defining a module.
     - regular and compact representation
 - What does that give us?
@@ -32,6 +32,7 @@ At the end of this post, we will have implemented and trained a very simple **cl
     - In PyTorch, a module is $f_\Theta$ that we can apply $x$ to.
     - In Flax, a module is literally $f$, which we apply both $\Theta$ and $x$ to.
     - It makes it quite easy to swap out params.
+    - Show that we can pass any pytree with the correct structure.
 - params as a PyTree makes it interoperate perfectly with not only JAX, but other libraries built on top of JAX.
     - This modularity is quite common in the JAX ecosystem, we aren't locked into something (typically) if we pick one library.
 - The final result is the same. We get params and ops that is passed to a function. This gets traced and compiled as before. We get an optimised compiled function.
@@ -43,6 +44,59 @@ At the end of this post, we will have implemented and trained a very simple **cl
     - During runtime, `flax.linen` is a helper for creating stateless shells that build PyTrees of parameters and loosely associate said parameters with JAX operations.
     - Statelessness is important to allow Flax to interoperate with JAX and other libraries built on JAX, but also kinda neat.
 
+The high level structure of a training loop in pure JAX, looks something like
+this:
+```python
+dataset = ...   # initialise training dataset that we can iterate over
+params = ...    # initialise trainable parameters of our model
+epochs = ...
+
+def model_forward(params, batch):
+    ...         # perform a forward pass of our model on `batch` using `params`
+    return outputs
+
+def loss_fn(params, batch):
+    model_output = model_forward(params, batch)
+    loss = ...  # compute a loss based on `batch` and `model_output`
+    return loss
+
+@jax.jit
+def train_step(params, batch):
+    loss, grad = jax.value_and_grad(loss_fn)(params, batch)
+    grads = ...  # transform `grads` (clipping, multiply by learning rate, etc.)
+    params = ... # update `params` using `grads` (such as via SGD)
+    return params, loss
+
+for _ in range(epochs):
+    for batch in dataset:
+        params, loss = train_step(params, batch)
+        ...         # report metrics and the like
+```
+We first define our model in a functional manner: simply being a function that
+takes in the model parameters and a batch, and returns the output of the model.
+Similarly, we define the loss function that also takes the parameters and a
+batch, and returns the loss. Our final function is the actual train step itself
+which we wrap in a `jax.jit` call – giving XLA maximum context to work with.
+This first computes the gradient of the loss function using the function
+transform `jax.value_and_grad`, manipulates the returned gradients (perhaps
+scaling by a learning rate), and updates the parameters. We return the new
+parameters, and use them on the next call to `train_step`. This can be called in
+a loop, fetching new data from the dataset each time.
+
+Most (but not all) machine learning programs follow a pattern such as the one
+above. In other frameworks such as PyTorch though, typically we can package
+together the model forward pass and the management of the parameters into a
+stateful class representing our model – simplifying the training loop. It would
+be nice if we could imitate this behaviour in stateless JAX to allow the
+developer to reason about models in a class-based way. This is what Flax's 
+neural network API – `flax.linen` – aims to achieve.
+
+> Whether or not writing models in a purely stateless, functional way is better
+than a stateful, class-based way, is not the topic of this blog post. In my
+opinion both have merits. Regardless, during execution the result is the same
+whether we use Flax or not: a stateless, heavily-optimised, binary blob that we
+throw data at. It's all JAX after all.
+
 ## A full training loop with Optax and Flax
 - (hard to explain optax without something to target)
 - Show the main Optax concepts briefly
@@ -53,7 +107,7 @@ At the end of this post, we will have implemented and trained a very simple **cl
 - Create dataset and dataloader
 - Define our VAE model!
     - Briefly describe what a VAE is too
-    - Conv model? Or Linear?
+    - Show off the linear model, and how we class condition it.
 - Introduce the `create_train_step` and `train_step` pattern
     - Also `create_eval_step` and `eval_step` pattern
 - Initialise everything!
