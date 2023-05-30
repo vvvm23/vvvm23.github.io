@@ -1393,3 +1393,12 @@ feed](https://afmck.in/index.xml) for notifications on future ramblings about
 machine learning and other topics. Alternatively you can navigate to the root of
 this website and repeatedly refresh until something happens. Thank you for
 reading this far and I hope you found it useful!
+
+---
+
+### Acknowledgements and Further Resources
+Some good extra resources:
+- [Aleksa Gordic's JAX and Flax tutorial series.](https://github.com/gordicaleksa/get-started-with-JAX)
+- [Official JAX documentation.](https://jax.readthedocs.io/en/latest/jax-101/index.html)
+
+Thanks to [Kamil Hepak](https://kmlhpk.com/) for doing a language review of this blog post!
