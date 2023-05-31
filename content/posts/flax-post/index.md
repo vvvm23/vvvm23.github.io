@@ -297,7 +297,7 @@ training loop. Without further ado..
 - Show the main Optax concepts briefly X
     - Stateless optimiser (SGD) X
     - Stateful (show optimiser state, and how this must be passed around too) X
-    - How to call the optimiser?
+    - How to call the optimiser? X
 - Define our configuration options
 - Create dataset and dataloader
 - Define our VAE model!
@@ -352,7 +352,7 @@ Out: GradientTransformationExtraArgs(init=<function chain.<locals>.init_fn at 0x
 
 Not pretty, but we can see that the optimiser is just a **gradient
 transformation** – in fact all optimisers in Optax are implemented as gradient
-transformations. These are defined to be a pair of functions `init` and
+transformations. A gradient transformation is defined to be a pair of functions `init` and
 `update`, which are both pure functions. Like a Flax model, Optax optimisers
 have no state, and must be initialised before it can be used, and any state must
 be passed around by the developer to `update`:
@@ -412,6 +412,234 @@ interoperability with JAX and `jax.jit`, as well as other libraries built on top
 of JAX.
 
 <!-- TODO: talk about the definition of init and update -->
+Concretely, Optax gradient transformations are simply a named tuple
+containing pure functions `init` and `update`. `init` is a pure function which
+takes in an example instance of gradients to be transformed, and returns the
+optimiser initial state. In the case of `optax.sgd` this returns an empty state
+regardless of the example provided. For `optax.adam`, we get a more complex
+state containing the first and second order statistics of the same PyTree
+structure as the provided example.
+
+`update` takes in a PyTree of updates with the same structure as the example
+instance provided to `init`. In addition, it takes in the optimiser state
+returned by `init` and optionally the parameters of the model itself, which may
+be used by some optimisers. This function will return the transformed gradients
+(which could be another set of gradients, or the actual parameter updates) and
+the new optimiser state.
+
+> This is explained quite nicely in the documentation
+[here](https://optax.readthedocs.io/en/latest/api.html?highlight=gradienttransform#optax-types)
+
+In action on some dummy data, we get the following:
+```python
+import optax
+params = jnp.array([0.0, 1.0, 2.0]) # some dummy parameters
+optimiser = optax.adam(learning_rate=0.01)
+opt_state = optimiser.init(params)
+
+grads = jnp.array([4.0, 0.6, -3])# some dummy gradients
+updates, opt_state = optimiser.update(grads, opt_state, params)
+updates
+===
+Out: Array([-0.00999993, -0.00999993,  0.00999993], dtype=float32)
+```
+
+Optax provides a helper function to actually apply the updates to our
+parameters:
+```python
+new_params = optax.apply_updates(params, updates)
+new_params
+===
+Out: Array([-0.00999993,  0.99000007,  2.01      ], dtype=float32)
+```
+
+It is important to emphasise that Optax optimisers are gradient transformations,
+but gradient transformations are not just optimisers. We'll see more of that
+later after we finish a simple training loop.
+
+On that note, let's begin with said training loop. Recall, our goal is to train
+a class-conditioned, variational autoencoder (VAE) on the MNIST dataset. This is
+slightly more interesting than the classic classification example typically
+found in tutorials.
+
+<!-- TODO: expand on the task and define some configuration -->
+Not strictly related to JAX, Flax, or Optax, but it is worth describing what a
+VAE is. First, an autoencoder model is one that maps some input $x$ in our data
+space to a latent vector $z$ in the **latent space** (a space with smaller
+dimensionality than the data space) and back to the data space. It is trained to
+minimise the reconstruction loss between the input and the output, essentially
+learning the identity function through an **information bottleneck**. 
+
+The portion of the network that maps from the data space to the latent space is
+called the **encoder** and the portion that maps from the latent space to the
+data space is called the
+**decoder**. Applying the encoder is somewhat analogous to lossy compression and
+*applying the decoder is lossy decompression.
+
+What makes a VAE different to an autoencoder is that the encoder does not output
+the latent vector directly. Instead, it outputs the mean and log-variance of a
+gaussian distribution, which we can then sample from in order to get our latent.
+We apply an extra loss term to make these mean and log-variance outputs roughly
+follow the standard normal distribution. 
+
+> Interestingly, defining the encoder this way means for every given input $x$
+we have many possible latent vectors which are sampled stochastically. Our
+encoder is almost mapping to a sphere of possible latents centred at the mean
+vector with size scaling to log-variance.
+
+The decoder is the same as before.  However, now we can sample a latent from the
+normal distribution and pass it to the decoder in order to generate samples like
+those in the dataset we trained on! Adding the variational component turns our
+autoencoder compression model into a VAE generative model.
+
+Our goal is to implement the model code for the VAE as well as the training loop
+with both the reconstruction and variational loss terms. Then, we can sample new
+digits that look like those in the MNIST dataset! Additionally, we will provide
+an extra input to the model – the class index – so we can control which number
+we want to generate.
+
+Let's begin by defining our configuration. For this educational example, we will
+just define some constants in a cell:
+```python
+batch_size = 16
+latent_dim = 32
+kl_weight = 0.5
+num_classes = 10
+seed = 0xffff
+```
+
+Along with some imports and PRNG initialisation:
+```python
+import jax # install correct wheel for accelerator you want to use
+import flax
+import optax
+import orbax
+
+import flax.linen as nn
+import jax.numpy as jnp
+import numpy as np
+from jax.typing import ArrayLike
+
+from typing import Tuple, Callable
+from math import sqrt
+
+import torchvision.transforms as T
+from torchvision.datasets import MNIST
+from torch.utils.data import DataLoader
+
+key = jax.random.PRNGKey(seed)
+```
+
+Let's grab our MNIST dataset while we are at it too:
+```python
+train_dataset = MNIST('data', train = True, transform=T.ToTensor(), download=True)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+```
+
+> Neither JAX, Flax, or Optax comes with data loading utilities, so I just use
+the perfectly serviceable PyTorch implementation of the MNIST dataset here.
+
+Now to our first real Flax model. We begin by defining a submodule `FeedForward`
+that implements a stack of linear layers with intermediate non-linearities:
+
+```python
+class FeedForward(nn.Module):
+  dimensions: Tuple[int] = (256, 128, 64)
+  activation_fn: Callable = nn.relu
+  drop_last_activation: bool = False
+
+  @nn.compact
+  def __call__(self, x: ArrayLike) -> ArrayLike:
+    for i, d in enumerate(self.dimensions):
+      x = nn.Dense(d)(x)  
+      if i != len(self.dimensions) - 1 or not self.drop_last_activation:
+        x = self.activation_fn(x)
+    return x
+
+key, model_key = jax.random.split(key)
+model = FeedForward(dimensions = (4, 2, 1), drop_last_activation = True)
+print(model)
+
+params = model.init(model_key, jnp.zeros((1, 8)))
+print(params)
+
+key, x_key = jax.random.split(key)
+x = jax.random.normal(x_key, (1, 8))
+y = model.apply(params, x)
+
+y
+===
+Out: 
+```
+We use the `nn.compact` decorator here as the logic is relatively simple. We
+just iterate over the tuple `self.dimensions` and pass our current activations
+through a `nn.Dense` module, followed by applying `self.activation_fn`. This
+activation can optionally be dropped for the final linear layer in
+`FeedForward`. This is needed as `nn.relu` only outputs non-negative values,
+which would cause our encoder outputs (mean and log-variance) to only be
+non-negative.
+
+Using `FeedForward`, we can define our full VAE model:
+```python
+class VAE(nn.Module):
+  encoder_dimensions: Tuple[int] = (256, 128, 64)
+  decoder_dimensions: Tuple[int] = (128, 256, 784)
+  latent_dim: int = 4
+  activation_fn: Callable = nn.relu
+
+  def setup(self):
+    self.encoder = FeedForward(self.encoder_dimensions, self.activation_fn)
+    self.pre_latent_proj = nn.Dense(self.latent_dim * 2)
+    self.post_latent_proj = nn.Dense(self.encoder_dimensions[-1])
+    self.decoder = FeedForward(self.decoder_dimensions, self.activation_fn, drop_last_activation=False)
+
+  def reparam(self, mean: ArrayLike, logvar: ArrayLike, key: jax.random.PRNGKey) -> ArrayLike:
+    std = jnp.exp(logvar * 0.5)
+    eps = jax.random.normal(key, mean.shape)
+    return eps * std + mean
+
+  def encode(self, x: ArrayLike):
+    x = self.encoder(x)
+    mean, logvar = jnp.split(self.pre_latent_proj(x), 2, axis=-1)
+    return mean, logvar
+
+  def decode(self, x: ArrayLike):
+    x = self.post_latent_proj(x)
+    x = self.decoder(x)
+    return x
+
+  def __call__(
+      self, x: ArrayLike, key: jax.random.PRNGKey) -> Tuple[ArrayLike, ArrayLike, ArrayLike]:
+    mean, logvar = self.encode(x)
+    z = self.reparam(mean, logvar, key)
+    y = self.decode(z)
+    return y, mean, logvar
+
+key, model_key = jax.random.split(key)
+model = VAE(latent_dim=4)
+
+key, call_key = jax.random.split(key)
+params = model.init(model_key, jnp.zeros((1, 784)), call_key)
+
+recon, mean, logvar = model.apply(params, jnp.zeros((4, 784)), call_key)
+recon.shape, mean.shape, logvar.shape
+===
+Out: ((4, 784), (4, 4), (4, 4))
+```
+
+There is a lot to the above cell. Knowing the specifics of how this model works
+isn't too important to understanding the training loop later, as we can treat
+the model as a bit of a black box. Saying that, I'll unpack each function briefly:
+- `setup`:
+- `reparam`:
+- `encode`:
+- `decode`:
+- `__call__`:
+
+The above example also demonstrates that we can add other functions to our Flax
+modules aside from `setup` and `__call__`. This is useful for more complex
+behaviour, or if we want to only execute parts of the model (more on this
+later).
 
 ## Nice extra tidbits
 - Flax Train State
