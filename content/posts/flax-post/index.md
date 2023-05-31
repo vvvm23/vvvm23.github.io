@@ -36,14 +36,15 @@ At the end of this post, we will have implemented and trained a very simple **cl
 - params as a PyTree makes it interoperate perfectly with not only JAX, but other libraries built on top of JAX. X
     - This modularity is quite common in the JAX ecosystem, we aren't locked into something (typically) if we pick one library. X
 - The final result is the same. We get params and ops that is passed to a function. This gets traced and compiled as before. We get an optimised compiled function. X
-- There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model.
-    - Maybe move to later section... We could even use it in the sample step!
 - Flax comes with a bunch of other layers inbuilt. I won't enumerate them all, but all the usual culprits are there. X
-    - Keep in mind though, some default initialisers are different which could be an issue if you are porting models from other frameworks to Flax.
+    - Keep in mind though, some default initialisers are different which could be an issue if you are porting models from other frameworks to Flax. X
 - There is a lot more to Flax than this, but enough for now. Main takeaway are:
     - During dev time, Flax helps the developer reason about neural networks in an object-orientated way whilst remaining functional during runtime. X
     - During runtime, `flax.linen` is a helper for creating stateless shells that build PyTrees of parameters and loosely associate said parameters with JAX operations. X
     - Statelessness is important to allow Flax to interoperate with JAX and other libraries built on JAX, but also kinda neat. X
+
+- There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model.
+    - Maybe move to later section... We could even use it in the sample step!
 
 The high level structure of a training loop in pure JAX, looks something like
 this:
@@ -63,7 +64,7 @@ def loss_fn(params, batch):
 
 @jax.jit
 def train_step(params, batch):
-    loss, grad = jax.value_and_grad(loss_fn)(params, batch)
+    loss, grads = jax.value_and_grad(loss_fn)(params, batch)
     grads = ...  # transform `grads` (clipping, multiply by learning rate, etc.)
     params = ... # update `params` using `grads` (such as via SGD)
     return params, loss
@@ -131,9 +132,14 @@ forward pass alone.
 
 Like in other frameworks, we can nest modules within each other to implement
 complex model behaviour. Like we've already seen, `flax.linen` provides some
-prebaked modules like `nn.Dense` (same as PyTorch's `nn.Linear`). I won't
+pre-baked modules like `nn.Dense` (same as PyTorch's `nn.Linear`). I won't
 enumerate them all, but the usual candidates are all there like convolutions,
 embeddings, and more.
+
+> Something to bear in mind if you are porting models from PyTorch to Flax is
+that the default weight initialisation can be different. For example, in PyTorch
+the default bias initialisation is LeCun normal, but in Flax it is simply
+initialised to zero.
 
 However, as is, we cannot call this model, even if we were to initialise the
 class itself. There simply aren't any parameters yet to use, and our module is
@@ -278,7 +284,7 @@ function containing `model.apply` that takes as input our PyTree, can be safely
 jit-compiled. The result is the same, a heavily-optimised binary blob we bombard
 with data. Nothing changes during runtime, it just makes development easier for
 those who prefer reasoning about neural networks in a class-based way whilst
-remaining interoperable with, and keeping the performance of JAX
+remaining interoperable with, and keeping the performance of JAX.
 
 There's a lot more to Flax than this, especially outside the `flax.linen` neural
 network API. However, for now, I will move on to a full training loop example
@@ -288,9 +294,9 @@ training loop. Without further ado..
 
 ## A full training loop with Optax and Flax
 - (hard to explain optax without something to target)
-- Show the main Optax concepts briefly
-    - Stateless optimiser (SGD)
-    - Stateful (show optimiser state, and how this must be passed around too)
+- Show the main Optax concepts briefly X
+    - Stateless optimiser (SGD) X
+    - Stateful (show optimiser state, and how this must be passed around too) X
     - How to call the optimiser?
 - Define our configuration options
 - Create dataset and dataloader
@@ -305,6 +311,107 @@ training loop. Without further ado..
 
 Given our changes adding a Flax model, our generic training loop looks something
 more like this:
+```python
+model = Model(...) # create our model, just an empty shell
+dataset = ... # initialise training dataset that we can iterate over
+params = model.init(key, ...) # use `model` to help us initialise parameters
+epochs = ...
+
+def loss_fn(params, batch):
+    model_output = model.apply(params, batch)
+    loss = ...  # compute a loss based on `batch` and `model_output`
+    return loss
+
+@jax.jit
+def train_step(params, batch):
+    loss, grads = jax.value_and_grad(loss_fn)(params, batch)
+    grads = ...  # transform `grads` (clipping, multiply by learning rate, etc.)
+    params = ... # update `params` using `grads` (such as via SGD)
+    return params, loss
+
+for _ in range(epochs):
+    for batch in dataset:
+        params, loss = train_step(params, batch)
+        ...         # report metrics and the like
+```
+
+We've reduced the complexity of the training loop somewhat by reducing parameter
+initialisation and model calls to a single line each. We can reduce the burden
+on us further by relying on Optax to handle the gradient and parameter update
+steps in `train_step`. For simple optimisers, these steps can be quite simple.
+However, for more complex optimisers or gradient transformation behaviour, it
+can get quite complex. Optax packages this complex behaviour into a simple API.
+
+```python
+import optax
+optimiser = optax.sgd(learning_rate=1e-3)
+optimiser
+===
+Out: GradientTransformationExtraArgs(init=<function chain.<locals>.init_fn at 0x7fa7185503a0>, update=<function chain.<locals>.update_fn at 0x7fa718550550>)
+```
+
+Not pretty, but we can see that the optimiser is just a **gradient
+transformation** – in fact all optimisers in Optax are implemented as gradient
+transformations. These are defined to be a pair of functions `init` and
+`update`, which are both pure functions. Like a Flax model, Optax optimisers
+have no state, and must be initialised before it can be used, and any state must
+be passed around by the developer to `update`:
+```python
+optimiser_state = optimiser.init(params)
+optimiser_state
+===
+Out: (EmptyState(), EmptyState())
+```
+
+Of course, as SGD is a stateless optimiser, the initialisation call simply
+returns the empty state. Nonetheless, it must do this to maintain the API of a
+gradient transformation. Let's try with a more complex optimiser like Adam:
+```python
+optimiser = optax.adam(learning_rate=1e-3)
+optimiser_state = optimiser.init(params)
+optimiser_state
+===
+Out: (ScaleByAdamState(count=Array(0, dtype=int32), mu=FrozenDict({
+     params: {
+         layer: {
+             bias: Array([0., 0., 0., 0.], dtype=float32),
+             kernel: Array([[0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.]], dtype=float32),
+         },
+     },
+ }), nu=FrozenDict({
+     params: {
+         layer: {
+             bias: Array([0., 0., 0., 0.], dtype=float32),
+             kernel: Array([[0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.],
+                    [0., 0., 0., 0.]], dtype=float32),
+         },
+     },
+ })),
+ EmptyState())
+```
+Here, we can see the first and second order statistics of the Adam optimiser, as
+well as a count for number of training steps(?) seen so far(?). Like with SGD,
+this state needs to be passed to `update` when called.
+
+> Like Flax parameters, the optimiser state is just like any other PyTree. Any
+PyTree with a compatible structure could also be used. Again, this also allows
+interoperability with JAX and `jax.jit`, as well as other libraries built on top
+of JAX.
+
+<!-- TODO: talk about the definition of init and update -->
 
 ## Nice extra tidbits
 - Flax Train State
