@@ -19,32 +19,6 @@ At the end of this post, we will have implemented and trained a very simple **cl
 > I am not aware of other libraries that do the same thing as Optax, but there are a lot of neural network APIs built on top of JAX, such as [Equinox](https://github.com/patrick-kidger/equinox/) by [Patrik Kidger](https://kidger.site/), and [Haiku](https://github.com/deepmind/dm-haiku) developed at Deepmind. I simply picked Flax here in order to have perfect interoperability with Huggingface models during the [Huggingface JAX Diffusers sprint](https://github.com/huggingface/community-events/tree/main/jax-controlnet-sprint).
 
 ## Neural Network API with Flax
-- High level pattern of doing a training loop in JAX X
-- Which part does Flax address? X
-- The ways of defining a module. X
-    - regular and compact representation X
-- What does that give us?
-    - easy parameter init as a PyTree X
-    - easy way to call the model (whilst remaining stateless) X
-    - easier to reason about for the developer (class based) X
-- Model itself is essentially a hollow shell: loosely associating parameters with some ops. X
-    - Essentially a helper object. We can imagine a function $f_\Theta(x)$. X
-    - In PyTorch, a module is $f_\Theta$ that we can apply $x$ to. X
-    - In Flax, a module is literally $f$, which we apply both $\Theta$ and $x$ to. X
-    - It makes it quite easy to swap out params. X
-    - Show that we can pass any pytree with the correct structure. X
-- params as a PyTree makes it interoperate perfectly with not only JAX, but other libraries built on top of JAX. X
-    - This modularity is quite common in the JAX ecosystem, we aren't locked into something (typically) if we pick one library. X
-- The final result is the same. We get params and ops that is passed to a function. This gets traced and compiled as before. We get an optimised compiled function. X
-- Flax comes with a bunch of other layers inbuilt. I won't enumerate them all, but all the usual culprits are there. X
-    - Keep in mind though, some default initialisers are different which could be an issue if you are porting models from other frameworks to Flax. X
-- There is a lot more to Flax than this, but enough for now. Main takeaway are:
-    - During dev time, Flax helps the developer reason about neural networks in an object-orientated way whilst remaining functional during runtime. X
-    - During runtime, `flax.linen` is a helper for creating stateless shells that build PyTrees of parameters and loosely associate said parameters with JAX operations. X
-    - Statelessness is important to allow Flax to interoperate with JAX and other libraries built on JAX, but also kinda neat. X
-
-- There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model.
-    - Maybe move to later section... We could even use it in the sample step!
 
 The high level structure of a training loop in pure JAX, looks something like
 this:
@@ -293,21 +267,6 @@ later, but I feel some concepts are hard to explain without first showing a
 training loop. Without further ado..
 
 ## A full training loop with Optax and Flax
-- (hard to explain optax without something to target)
-- Show the main Optax concepts briefly X
-    - Stateless optimiser (SGD) X
-    - Stateful (show optimiser state, and how this must be passed around too) X
-    - How to call the optimiser? X
-- Define our configuration options
-- Create dataset and dataloader
-- Define our VAE model!
-    - Briefly describe what a VAE is too
-    - Show off the linear model, and how we class condition it.
-- Introduce the `create_train_step` and `train_step` pattern
-    - Also `create_eval_step` and `eval_step` pattern
-- Initialise everything!
-- Create main training loop
-- Plot some nice samples
 
 Given our changes adding a Flax model, our generic training loop looks something
 more like this:
@@ -570,14 +529,50 @@ y = model.apply(params, x)
 y
 ===
 Out: 
+
+
+FeedForward(
+    # attributes
+    dimensions = (4, 2, 1)
+    activation_fn = relu
+    drop_last_activation = True
+)
+FrozenDict({
+    params: {
+        Dense_0: {
+            kernel: Array([[ 0.0840368 , -0.18825287,  0.49946404, -0.4610112 ],
+                   [ 0.4370267 ,  0.21035315, -0.19604324,  0.39427406],
+                   [ 0.00632685, -0.02732705,  0.16799504, -0.44181877],
+                   [ 0.26044282,  0.42476758, -0.14758752, -0.29886967],
+                   [-0.57811564, -0.18126923, -0.19411889, -0.10860331],
+                   [-0.20605426, -0.16065307, -0.3016759 ,  0.44704655],
+                   [ 0.35531637, -0.14256613,  0.13841921,  0.11269159],
+                   [-0.430825  , -0.0171169 , -0.52949774,  0.4862139 ]],      dtype=float32),
+            bias: Array([0., 0., 0., 0.], dtype=float32),
+        },
+        Dense_1: {
+            kernel: Array([[ 0.03389561, -0.00805947],
+                   [ 0.47362345,  0.37944487],
+                   [ 0.41766328, -0.15580587],
+                   [ 0.5538078 ,  0.18003668]], dtype=float32),
+            bias: Array([0., 0.], dtype=float32),
+        },
+        Dense_2: {
+            kernel: Array([[ 1.175035 ],
+                   [-1.1607001]], dtype=float32),
+            bias: Array([0.], dtype=float32),
+        },
+    },
+})
+
+Array([[0.5336972]], dtype=float32)
 ```
 We use the `nn.compact` decorator here as the logic is relatively simple. We
 just iterate over the tuple `self.dimensions` and pass our current activations
 through a `nn.Dense` module, followed by applying `self.activation_fn`. This
 activation can optionally be dropped for the final linear layer in
 `FeedForward`. This is needed as `nn.relu` only outputs non-negative values,
-which would cause our encoder outputs (mean and log-variance) to only be
-non-negative.
+whereas sometimes we need non-negative outputs!
 
 Using `FeedForward`, we can define our full VAE model:
 ```python
@@ -591,6 +586,7 @@ class VAE(nn.Module):
     self.encoder = FeedForward(self.encoder_dimensions, self.activation_fn)
     self.pre_latent_proj = nn.Dense(self.latent_dim * 2)
     self.post_latent_proj = nn.Dense(self.encoder_dimensions[-1])
+    self.class_proj = nn.Dense(self.encoder_dimensions[-1])
     self.decoder = FeedForward(self.decoder_dimensions, self.activation_fn, drop_last_activation=False)
 
   def reparam(self, mean: ArrayLike, logvar: ArrayLike, key: jax.random.PRNGKey) -> ArrayLike:
@@ -603,45 +599,225 @@ class VAE(nn.Module):
     mean, logvar = jnp.split(self.pre_latent_proj(x), 2, axis=-1)
     return mean, logvar
 
-  def decode(self, x: ArrayLike):
+  def decode(self, x: ArrayLike, c: ArrayLike):
     x = self.post_latent_proj(x)
+    x = x + self.class_proj(c)
     x = self.decoder(x)
     return x
 
   def __call__(
-      self, x: ArrayLike, key: jax.random.PRNGKey) -> Tuple[ArrayLike, ArrayLike, ArrayLike]:
+      self, x: ArrayLike, c: ArrayLike, key: jax.random.PRNGKey) -> Tuple[ArrayLike, ArrayLike, ArrayLike]:
     mean, logvar = self.encode(x)
     z = self.reparam(mean, logvar, key)
-    y = self.decode(z)
+    y = self.decode(z, c)
     return y, mean, logvar
 
+key = jax.random.PRNGKey(0x1234)
 key, model_key = jax.random.split(key)
 model = VAE(latent_dim=4)
+print(model)
 
 key, call_key = jax.random.split(key)
-params = model.init(model_key, jnp.zeros((1, 784)), call_key)
+params = model.init(model_key, jnp.zeros((batch_size, 784)), jnp.zeros((batch_size, num_classes)), call_key)
 
-recon, mean, logvar = model.apply(params, jnp.zeros((4, 784)), call_key)
+recon, mean, logvar = model.apply(params, jnp.zeros((batch_size, 784)), jnp.zeros((batch_size, num_classes)), call_key)
 recon.shape, mean.shape, logvar.shape
 ===
-Out: ((4, 784), (4, 4), (4, 4))
+Out:
+ClassVAE(
+    # attributes
+    encoder_dimensions = (256, 128, 64)
+    decoder_dimensions = (128, 256, 784)
+    latent_dim = 4
+    activation_fn = relu
+)
+((16, 784), (16, 4), (16, 4))
 ```
 
 There is a lot to the above cell. Knowing the specifics of how this model works
 isn't too important to understanding the training loop later, as we can treat
 the model as a bit of a black box. Saying that, I'll unpack each function briefly:
-- `setup`:
-- `reparam`:
-- `encode`:
-- `decode`:
-- `__call__`:
+- `setup`: Creates the submodules of the network, namely two `FeedForward`
+stacks and two `nn.Linear` layers that project to and from the latent space. Additionally, it initialises another linear layer that projects our class conditioning vector to the same dimensionality as the last encoder layer.
+- `reparam`: Sampling a latent directly from a random Gaussian is not
+differentiable, hence we employ the **reparameterisation trick** where we
+instead sample a random vector, scale by the standard deviation, then add to the
+mean. As it involves some random sampling, we take as input a key in addition to
+mean and log-variance.
+- `encode`: Applies the encoder and projection to the latent space to the input.
+Note, the output of the projection is actually double the size of the latent
+space, as we split it in two to obtain our mean and log-variance.
+- `decode`: Applies a projection from the latent space to `x`, followed by
+adding the output of `class_proj` on the conditioning vector. Finally, passes
+the result through the decoder stack.
+- `__call__`: This is simply the full model forward pass: `encode` then
+`reparam` then `decode`. This is used during training.
 
 The above example also demonstrates that we can add other functions to our Flax
 modules aside from `setup` and `__call__`. This is useful for more complex
 behaviour, or if we want to only execute parts of the model (more on this
 later).
 
-## Nice extra tidbits
+We now have our model, optimiser, and dataset. The next step is to write the
+function that implements our training step, and jit-compile it:
+```python
+def create_train_step(key, model, optimiser):
+  params = model.init(key, jnp.zeros((batch_size, 784)), jnp.zeros((batch_size, num_classes)), jax.random.PRNGKey(0)) # dummy key just as example input
+  opt_state = optimiser.init(params)
+  
+  def loss_fn(params, x, c, key):
+    reduce_dims = list(range(1, len(x.shape)))
+    c = jax.nn.one_hot(c, num_classes) # one hot encode the class index
+    recon, mean, logvar = model.apply(params, x, c, key)
+    mse_loss = optax.l2_loss(recon, x).sum(axis=reduce_dims).mean()
+    kl_loss = jnp.mean(-0.5 * jnp.sum(1 + logvar - mean ** 2 - jnp.exp(logvar), axis=reduce_dims)) # KL loss term to keep encoder output close to standard normal distribution.
+
+    loss = mse_loss + kl_weight * kl_loss
+    return loss, (mse_loss, kl_loss)
+
+  @jax.jit
+  def train_step(params, opt_state, x, c, key):
+    losses, grads = jax.value_and_grad(loss_fn, has_aux=True)(params, x, c, key)
+    loss, (mse_loss, kl_loss) = losses
+    
+    updates, opt_state = optimiser.update(grads, opt_state, params)
+    params = optax.apply_updates(params, updates)
+
+    return params, opt_state, loss, mse_loss, kl_loss
+
+  return train_step, params, opt_state
+```
+Here, I actually first define a function that returns the training step function
+given a target model and optimiser, along with returning the freshly initialised
+parameters and optimiser state.
+Let's unpack it all a bit:
+1. First, it initialises our model using an example input. In this case, this is
+a 784-dim array which contains the MNIST digit and a random, random key.
+2. Also initialises the optimiser state using the parameters.
+3. Now, it defines the loss function. This is simply a `model.apply` call which
+returns the model's reconstruction of the input, along with the predicted mean
+and log-variance. We then compute the mean-squared error loss and the
+KL-divergence and compute a weighted sum to get our final loss. The KL term is
+what keeps the encoder outputs close to a standard normal distribution.
+4. Next, the actual train step definition. This begins by transforming `loss_fn`
+using our old friend `jax.value_and_grad` which will return the loss and also
+the gradients. We must set `has_aux=True` as we return all loss terms for
+logging purposes. We provide the gradients, optimiser state, and parameters to
+`optimiser.update` which transforms the gradients and returns the parameter updates and the new optimiser state. This is then applied to the parameters, and we return the new parameters, optimiser state, and loss terms – followed by wrapping the whole thing in `jax.jit`. Phew..
+
+> A function that generates the training step is just a pattern I quite like,
+and there is nothing stopping you just writing the training step directly.
+
+Let's call `create_train_step`:
+```python
+key, model_key = jax.random.split(key)
+
+model = VAE(latent_dim=latent_dim)
+optimiser = optax.adamw(learning_rate=1e-4)
+
+train_step, params, opt_state = create_train_step(model_key, model, optimiser)
+```
+
+When we call the above, we get a `train_step` ready to be compiled and accept
+our parameters, optimiser state, and data at blistering fast speeds. As always with jit-compiled functions, the first call with a given set of input shapes will be slow, but fast on subsequent calls as we skip the compiling and optimisation process.
+
+We are now in a position to write our training loop and train the model!
+```python
+freq = 100
+for epoch in range(10):
+  total_loss, total_mse, total_kl = 0.0, 0.0, 0.0
+  for i, (batch, c) in enumerate(train_loader):
+    key, subkey = jax.random.split(key)
+
+    batch = batch.numpy().reshape(batch_size, 784)
+    c = c.numpy()
+    params, opt_state, loss, mse_loss, kl_loss = train_step(params, opt_state, batch, c, subkey)
+
+    total_loss += loss
+    total_mse += mse_loss
+    total_kl += kl_loss
+
+    if i > 0 and not i % freq:
+      print(f"epoch {epoch} | step {i} | loss: {total_loss / freq} ~ mse: {total_mse / freq}. kl: {total_kl / freq}")
+      total_loss = 0.
+      total_mse, total_kl = 0.0, 0.0
+===
+Out:
+epoch 0 | step 100 | loss: 49.439998626708984 ~ mse: 49.060447692871094. kl: 0.7591156363487244
+epoch 0 | step 200 | loss: 37.1823616027832 ~ mse: 36.82903289794922. kl: 0.7066375613212585
+epoch 0 | step 300 | loss: 33.82365036010742 ~ mse: 33.49456024169922. kl: 0.6581906080245972
+epoch 0 | step 400 | loss: 31.904821395874023 ~ mse: 31.570871353149414. kl: 0.6679074764251709
+epoch 0 | step 500 | loss: 31.095705032348633 ~ mse: 30.763246536254883. kl: 0.6649144887924194
+epoch 0 | step 600 | loss: 29.771989822387695 ~ mse: 29.42426872253418. kl: 0.6954278349876404
+
+...
+
+epoch 9 | step 3100 | loss: 14.035745620727539 ~ mse: 10.833460807800293. kl: 6.404574871063232
+epoch 9 | step 3200 | loss: 14.31241226196289 ~ mse: 11.043667793273926. kl: 6.53748893737793
+epoch 9 | step 3300 | loss: 14.26440143585205 ~ mse: 11.01070785522461. kl: 6.5073771476745605
+epoch 9 | step 3400 | loss: 13.96005630493164 ~ mse: 10.816412925720215. kl: 6.28728723526001
+epoch 9 | step 3500 | loss: 14.166285514831543 ~ mse: 10.919700622558594. kl: 6.493169784545898
+epoch 9 | step 3600 | loss: 13.819541931152344 ~ mse: 10.632755279541016. kl: 6.373570919036865
+epoch 9 | step 3700 | loss: 14.452215194702148 ~ mse: 11.186063766479492. kl: 6.532294750213623
+```
+Now that we have our `train_step` function, the training loop itself is mostly
+just repeatedly fetching data, calling our uber-fast `train_step` function, and
+logging results so we can track training. We can see that the loss does indeed
+go down, which means our model is training!
+
+> You may notice that the KL-loss term *increases* during training. This is okay
+so long as it doesn't get too high, in which case sampling from the model
+becomes difficult. Tuning the hyperparameter `kl_weight` is quite important. Too
+low and we get perfect reconstructions but no sampling capabilities – too high
+and the outputs will become blurry.
+
+Let's try sampling from the model so we can see that it does indeed produce
+convincing samples:
+```python
+def build_sample_fn(model, params):
+  @jax.jit
+  def sample_fn(z: jnp.array, c: jnp.array) -> jnp.array:
+    return model.apply(params, z, c, method=model.decode)
+  return sample_fn
+
+sample_fn = build_sample_fn(model, params)
+
+num_samples = 100
+h, w = 10
+
+key, z_key = jax.random.split(key)
+z = jax.random.normal(z_key, (num_samples, latent_dim))
+c = np.repeat(np.arange(h)[:, np.newaxis], w, axis=-1).flatten()
+c = jax.nn.one_hot(c, num_classes)
+sample = sample_fn(z, c)
+z.shape, c.shape, sample.shape
+===
+Out: ((100, 32), (100, 10), (100, 784))
+```
+
+The above cell generates 100 samples – 10 examples from each of the 10 classes.
+We again jit-compile our sample function for speed, but only call the
+`model.decode` method, rather than the full model, as we only need to decode our
+randomly sampled latents. This is achieved by specifying `method=model.decode` in the `model.apply` call.
+
+Let's visualise the results using matplotlib:
+```python
+import matplotlib.pyplot as plt
+import math
+from numpy import einsum
+
+sample = einsum('ikjl', np.asarray(sample).reshape(h, w, 28, 28)).reshape(28*h, 28*w)
+
+plt.imshow(sample, cmap='gray')
+plt.show()
+```
+![Sample MNIST digits from our trained model](img/sample.png)
+
+It seems our model did indeed train and can be sampled from! Additionally, the
+model is capable of using the class conditioning signal so that we can control
+which digits are generated. Therefore, we have succeded in building a full Flax+Optax training loop!
+
+## Extra Flax and Optax Tidbits
 - Flax Train State
 - Learning Rate schedulers
     - Linear, w/ warmup
@@ -650,6 +826,7 @@ later).
 - Finetuning specific parameters
 - Orbax?
     - Just mention? Or show basic use-case?
+- There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model.
 
 ## Conclusion
 - Less ideological, more a practical guide to use JAX + Flax + Optax
