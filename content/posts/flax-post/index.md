@@ -819,6 +819,7 @@ which digits are generated. Therefore, we have succeded in building a full Flax+
 
 ## Extra Flax and Optax Tidbits
 - Flax Train State
+    - Could just use a namedtuple, but Flax has a nice inbuilt one.
 - Learning Rate schedulers
     - Linear, w/ warmup
 - Grad clipping and chaining
@@ -827,6 +828,11 @@ which digits are generated. Therefore, we have succeded in building a full Flax+
 - Orbax?
     - Just mention? Or show basic use-case?
 - There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model.
+- Non differentiable module parameters? (codebooks, batch norm, etc)
+- regularisation layers like dropout
+- composing layers like Sequential
+- gradient accumulation? optax.MultiSteps
+- refer to other losses and optimisers (link to API reference)
 
 ## Conclusion
 - Less ideological, more a practical guide to use JAX + Flax + Optax
