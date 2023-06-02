@@ -818,8 +818,11 @@ model is capable of using the class conditioning signal so that we can control
 which digits are generated. Therefore, we have succeded in building a full Flax+Optax training loop!
 
 ## Extra Flax and Optax Tidbits
-- Flax Train State
-    - Could just use a namedtuple, but Flax has a nice inbuilt one.
+- Flax Train State X
+    - Could just use a namedtuple, but Flax has a nice inbuilt one. X
+- There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model. X
+- regularisation layers like dropout X
+- composing layers like Sequential X
 - Learning Rate schedulers
     - Linear, w/ warmup
 - Grad clipping and chaining
@@ -827,13 +830,166 @@ which digits are generated. Therefore, we have succeded in building a full Flax+
 - Finetuning specific parameters
 - Orbax?
     - Just mention? Or show basic use-case?
-- There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model.
 - Non differentiable module parameters? (codebooks, batch norm, etc)
-- regularisation layers like dropout
-- composing layers like Sequential
 - gradient accumulation? optax.MultiSteps
 - refer to other losses and optimisers (link to API reference)
+
+I'd like to finish this blog post by highlighting some interesting and useful
+features that may prove useful in your own training loops. I won't delve into
+great detail but simply summarise and point you in the right direction.
+
+You may have noticed that when we add parameters, optimiser states, and a bunch
+of other metrics to the return call of `train_step` it gets a bit unwieldly to
+handle all the state. It could get worse if we have a more complex state also.
+One solution would be to return a `namedtuple` so we can at least package the
+state together somewhat. However, Flax provides its own solution,
+`flax.training.train_state.TrainState`, which has some extra functions that make
+updating the combined state (model and optimiser state) easier.
+
+It is easiest to show by simply taking our earlier `train_step` and refactoring it
+with `TrainState`:
+```python
+from flax.training.train_state import TrainState
+def create_train_step(key, model, optimiser):
+  params = model.init(key, jnp.zeros((batch_size, 784)), jnp.zeros((batch_size, num_classes)), jax.random.PRNGKey(0))
+  state = TrainState.create(apply_fn=model.apply, params=params, tx=optimiser)
+  
+  def loss_fn(state, x, c, key):
+    reduce_dims = list(range(1, len(x.shape)))
+    c = jax.nn.one_hot(c, num_classes)
+    recon, mean, logvar = state.apply_fn(state.params, x, c, key)
+    mse_loss = optax.l2_loss(recon, x).sum(axis=reduce_dims).mean()
+    kl_loss = jnp.mean(-0.5 * jnp.sum(1 + logvar - mean ** 2 - jnp.exp(logvar), axis=reduce_dims))
+
+    loss = mse_loss + kl_weight * kl_loss
+    return loss, (mse_loss, kl_loss)
+
+  @jax.jit
+  def train_step(state, x, c, key):
+    losses, grads = jax.value_and_grad(loss_fn, has_aux=True)(state, x, c, key)
+    loss, (mse_loss, kl_loss) = losses
+
+    state = state.apply_gradients(grads=grads)
+
+    return state, loss, mse_loss, kl_loss
+
+  return train_step, state
+```
+We begin `create_train_step` by initialising our parameters as normal. However,
+the next step is to create the state using `TrainState.create` and passing our
+model forward call, the initialised parameters, and the optimiser want to use.
+Internally, `TrainState.create` we initialise the optimiser for us.
+
+In `loss_fn`, rather than call `model.apply` we can use `state.apply_fn`
+instead. Either method is equivalent, just that sometimes we may not have
+`model` in scope.
+
+The largest change is in `train_step` itself. Rather than call
+`optimiser.update` followed by `optax.apply_updates`, we just simply call
+`state.apply_gradients` which internally updates the optimiser and updates the
+parameters. It then returns the new state, which we return and pass to the next
+call of `train_step` – as we would with `params` and `opt_state`.
+
+> It is possible to add extra attributes to `TrainState` by subclassing it, for
+example adding attributes to store the latest loss.
+
+In conclusion, `TrainState` makes it easier to pass around state in the training
+loop, as well as abstracting away optimiser and parameter updates.
+
+Another useful feature of Flax is the ability to *bind* parameters to a model,
+yielding an interactive instance that can be called directly, as if it were a
+PyTorch model with internal state. However, this state is static and can only
+change if we bind it again, which makes it unusable for training. However, it
+can be handy for interactive debugging or inference.
+
+The API is pretty simple:
+```python
+key, model_key = jax.random.split(key)
+model = nn.Dense(2)
+params = model.init(model_key, jnp.zeros(8))
+
+bound_model = model.bind(params)
+bound_model(jnp.ones(8))
+===
+Out: Array([ 0.45935923, -0.691003  ], dtype=float32)
+```
+
+We can get back the unbound model and its parameters by calling `model.unbind`:
+```python
+bound_model.unbind()
+===
+Out: (Dense(
+     # attributes
+     features = 2
+     use_bias = True
+     dtype = None
+     param_dtype = float32
+     precision = None
+     kernel_init = init
+     bias_init = zeros
+     dot_general = dot_general
+ ),
+ FrozenDict({
+     params: {
+         kernel: Array([[-0.11450272, -0.2808447 ],
+                [-0.45104247, -0.3774913 ],
+                [ 0.07462895,  0.3622056 ],
+                [ 0.59189916, -0.34050766],
+                [-0.10401642, -0.36226135],
+                [ 0.157985  ,  0.00198693],
+                [-0.00792678, -0.1142673 ],
+                [ 0.31233454,  0.4201768 ]], dtype=float32),
+         bias: Array([0., 0.], dtype=float32),
+     },
+ }))
+```
+
+I said I wouldn't enumerate layers in Flax as I don't see much value to it, but
+I will highlight two more interesting ones. First is `nn.Dropout` which is
+numerically the same as its PyTorch counterpart, but like anything random in
+JAX, requires a PRNG key as input. 
+
+The dropout layer takes its random key by internally calling
+`self.make_rng('dropout')`, which pulls and splits from a PRNG stream named
+`'dropout'`. This means when we call `model.apply` we will need to define the
+starting key for this PRNG stream. This can be done by passing a dictionary
+mapping stream names to PRNG keys, to the `rngs` argument in `model.apply`:
+```python
+key, x_key = jax.random.split(key)
+key, drop_key = jax.random.split(key)
+x = jax.random.normal(x_key, (3,3))
+
+model = nn.Dropout(0.5, deterministic=False)
+y = model.apply({}, x, rngs={'dropout': drop_key}) # there is no state, just pass empty dictionary :)
+x, y
+===
+Out: (Array([[ 1.7353934, -1.741734 , -1.3312583],
+        [-1.615281 , -0.6381292,  1.3057163],
+        [ 1.2640097, -1.986926 ,  1.7818599]], dtype=float32),
+ Array([[ 3.4707868,  0.       , -2.6625166],
+        [ 0.       ,  0.       ,  2.6114326],
+        [ 0.       , -3.973852 ,  0.       ]], dtype=float32))
+```
+
+> `model.init` also accepts a dictionary of PRNG keys. It allows passing in a
+single key which starts a stream named `'params'`. This is equivalent to passing
+`{'dropout': rng}`
+
+These streams are accessible to submodules – so `nn.Dropout` can call
+`self.make_rng('dropout')` regardless of where it is – as well as allowing for
+arbitrarily named submodules. In our VAE example, we could forgo passing in the
+key manually, and instead get keys for random sampling using
+`self.make_rng('noise')` or similar, then passing a starting key in `rngs` in
+`model.apply`. For models with lots of randomness, it may be worth doing this.
+
+The second useful built-in module is `nn.Sequential` which is again like its
+PyTorch counterpart. This simply chains together many modules such that the
+outputs of one module will flow into the inputs of the next. Useful if we want
+to define large stacks of layers quickly.
 
 ## Conclusion
 - Less ideological, more a practical guide to use JAX + Flax + Optax
 
+---
+
+### Acknowledgements and Extra Resources
