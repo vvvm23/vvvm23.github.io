@@ -823,15 +823,14 @@ which digits are generated. Therefore, we have succeded in building a full Flax+
 - There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model. X
 - regularisation layers like dropout X
 - composing layers like Sequential X
-- Learning Rate schedulers
-    - Linear, w/ warmup
-- Grad clipping and chaining
-- EMA
+- Learning Rate schedulers X
+    - Linear, w/ warmup X
+- Grad clipping and chaining X
+- EMA X
 - Finetuning specific parameters
 - Orbax?
     - Just mention? Or show basic use-case?
-- Non differentiable module parameters? (codebooks, batch norm, etc)
-- gradient accumulation? optax.MultiSteps
+- gradient accumulation? optax.MultiSteps X
 - refer to other losses and optimisers (link to API reference)
 
 I'd like to finish this blog post by highlighting some interesting and useful
@@ -986,6 +985,106 @@ The second useful built-in module is `nn.Sequential` which is again like its
 PyTorch counterpart. This simply chains together many modules such that the
 outputs of one module will flow into the inputs of the next. Useful if we want
 to define large stacks of layers quickly.
+
+Now onto some Optax tidbits! First, Optax comes with a bunch of learning rate
+schedulers. Instead of passing a float value to `learning_rate` when creating
+the optimiser, we can pass a scheduler. When applying updates, Optax will
+automatically select the correct learning rate. Let's define a simple, linear
+schedule:
+```python
+start_lr, end_lr = 1e-3, 1e-5
+steps = 10_000
+lr_scheduler = optax.linear_schedule(
+  init_value=start_lr,
+  end_value=end_lr,
+  transition_steps=steps,
+)
+optimiser = optax.adam(learning_rate=lr_scheduler)
+```
+
+You can join together schedulers using `optax.join_schedules` in order to get
+more complex behaviour like learning rate warmup followed by decay:
+```python
+warmup_start_lr, warmup_steps = 1e-6, 1000
+start_lr, end_lr, steps = 1e-2, 1e-5, 10_000
+lr_scheduler = optax.join_schedules(
+    [
+        optax.linear_schedule(
+            warmup_start_lr,
+            start_lr,
+            warmup_steps,
+        ),
+        optax.linear_schedule(
+            start_lr,
+            end_lr,
+            steps - warmup_steps,
+        ),
+    ],
+    [warmup_steps],
+)
+
+optimiser = optax.adam(lr_scheduler)
+```
+The last argument to `optax.join_schedules` should be a sequence of integers
+defining the step boundaries between different schedules. In this case, we
+switch from warmup to decay after `warmup_steps` steps.
+
+> Optax keeps track of the number of optimiser steps in its `opt_state`, so we
+> don't need to track this ourselves.
+
+Similar to joining schedulers, Optax supports chaining optimisers together.
+More specifically, the chaining of gradient transformations:
+```python
+optimiser = optax.chain(
+    optax.clip_by_global_norm(1.0),
+    optax.adam(1e-2),
+)
+```
+When calling `optimiser.update`, the gradients will first be clipped before
+then doing the regular Adam update. Chaining together transformations like this
+is quite an elegant API, and allows for quite complex behaviour. To illustrate,
+adding exponential moving averages (EMA) of weights in something like PyTorch
+is non-trivial, whereas in Optax it is simply adding `optax.ema` to our
+`optax.chain` call:
+```python
+optimiser = optax.chain(
+    optax.clip_by_global_norm(1.0),
+    optax.adam(1e-2),
+    optax.ema(decay=0.999)
+)
+```
+
+In this case, `optax.ema` is a transformation on the final updates, rather than
+on the unprocessed gradients.
+
+Gradient accumulation is implemented in Optax as a optimiser wrapper, rather
+than another gradient transformation:
+
+```python
+grad_accum = 4
+optimiser = optax.MultiSteps(optax.adam(1e-2), grad_accum)
+```
+The returned optimiser collects updates over the `optimiser.update` calls until
+`grad_accum` steps have occurred. In the intermediate steps, the returned
+updates will simply be a PyTree of zeros in the same shapes as `params`. Every
+`grad_accum` steps, the accumulated updates will be returned.
+
+`grad_accum` can also be a function, which gives us a way to vary the batch
+size during training, by adjusting the number of steps between parameter
+updates.
+
+<!--TODO: let's talk a bit about finetuning too using Optax -->
+<!--Mention how no loss in performance just masking in jit region-->
+How about if we only want to update a subset of layers?
+
+Both Flax and Optax are quite feature-rich despite the relative infancy of the
+JAX ecosystem. I'd recommend just opening the
+[Flax](https://flax.readthedocs.io/en/latest/api_reference/index.html) or
+[Optax API reference](https://optax.readthedocs.io/en/latest/api.html) and
+searching for layers, optimisers, losses, and features you are used to having
+in other frameworks.
+
+<!--TODO: talk about Orbax? -->
 
 ## Conclusion
 - Less ideological, more a practical guide to use JAX + Flax + Optax
