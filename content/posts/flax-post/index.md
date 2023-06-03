@@ -1075,7 +1075,80 @@ updates.
 
 <!--TODO: let's talk a bit about finetuning too using Optax -->
 <!--Mention how no loss in performance just masking in jit region-->
-How about if we only want to update a subset of layers?
+How about if we only want to train certain parameters? For example, when
+finetuning a pretrained model. Nowadays, this is a pretty common thing to do,
+taking pretrained large language models and adapting them for specific
+downstream tasks.
+
+Let's grab a pretrained BERT model from the Huggingface hub:
+```python
+from transformers import FlaxBertForSequenceClassification
+model = FlaxBertForSequenceClassification.from_pretrained('bert-base-uncased')
+model.params.keys()
+===
+Out: dict_keys(['bert', 'classifier'])
+```
+> Huggingface provides Flax versions of *most* of their models. The API to use
+them is a bit different, calling `model(**inputs, params=params)` rather than
+`model.apply`. Providing no parameters will use the pretrained weights stored in
+`model.params` which is useful for inference-only tasks, but for training we
+should pass the current parameters to the call.
+
+We can see there are two top-level keys in the parameter PyTree: `bert` and
+`classifier`. Suppose we only want to finetune the classifier head and leave the
+BERT backbone alone, we can achieve this using `optax.multi_transform`:
+
+```python
+optimiser = optax.multi_transform({'train': optax.adam(1e-3), 'freeze': optax.set_to_zero()}, {'bert': 'freeze', 'classifier': 'train'})
+opt_state = optimiser.init(model.params)
+
+grads = jax.tree_map(jnp.ones_like, model.params)
+updates, opt_state = optimiser.update(grads, opt_state, model.params)
+```
+
+`optax.multi_transform` takes two inputs, the first is mapping from labels to
+gradient transformations. The second is a PyTree with the same structure or
+prefix as the updates (in the case above we use just the prefix) mapping to
+labels. The transformation matching the label of a given update will be applied.
+This allows the partitioning of parameters and applying different updates.
+
+> The second argument can also be a function that, given the updates PyTree,
+returns such a PyTree mapping updates (or their prefix) to labels.
+
+This can be used for other cases like having different optimisers for different
+layers, but in our case we simply use `optax.adam` for our trainable parameters,
+and zero out gradients for other regions using the stateless transform
+`optax.set_to_zero`.
+
+> In jit-compiled function, the updates that have `optax.set_to_zero` applied to
+them won't be computed due the optimisation process seeing they will always be
+zero. Hence, we get the expected memory savings from only finetuning a subset of
+layers!
+
+Let's print the updates and see that we do indeed have no updates in the BERT
+backbone, and have updates in the classifier head:
+```python
+updates['classifier'], updates['bert']['embeddings']['token_type_embeddings']
+===
+Out:
+{'bias': Array([-0.00100002, -0.00100002], dtype=float32),
+ 'kernel': Array([[-0.00100002, -0.00100002],
+        [-0.00100002, -0.00100002],
+        [-0.00100002, -0.00100002],
+        ...,
+        [-0.00100002, -0.00100002],
+        [-0.00100002, -0.00100002],
+        [-0.00100002, -0.00100002]], dtype=float32)}
+{'embedding': Array([[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]], dtype=float32)}
+```
+
+We can verify that all updates are zero using `jax.tree_util.tree_reduce`:
+```python
+jax.tree_util.tree_reduce(lambda c, p: c and (jnp.count_nonzero(p) == 0), updates['bert'], True)
+===
+Out: Array(True, dtype=bool)
+```
 
 Both Flax and Optax are quite feature-rich despite the relative infancy of the
 JAX ecosystem. I'd recommend just opening the
@@ -1084,7 +1157,128 @@ JAX ecosystem. I'd recommend just opening the
 searching for layers, optimisers, losses, and features you are used to having
 in other frameworks.
 
-<!--TODO: talk about Orbax? -->
+The last thing I want to talk about involves an entirely different library build
+on JAX. **Orbax** provides PyTree checkpointing utilities for saving and
+restoring arbitrary PyTrees. I won't go into great detail but will show basic
+usage here. There is nothing worse than spending hours training only to forget
+about actually saving progress!
+
+Here is basic usage saving the PyTree of BERT classifier parameters:
+```python
+import orbax
+import orbax.checkpoint
+from flax.training import orbax_utils
+
+orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+save_args = orbax_utils.save_args_from_target(model.params['classifier'])
+orbax_checkpointer.save('classifier.ckpt', model.params['classifier'], save_args=save_args)
+!ls
+===
+Out: classifier.ckpt
+```
+
+Which we can restore by running:
+```python
+orbax_checkpointer.restore('classifier.ckpt')
+===
+Out: {'bias': array([0., 0.], dtype=float32),
+ 'kernel': array([[-0.06871808, -0.06338844],
+        [-0.03397266,  0.00899913],
+        [-0.00669084, -0.06431466],
+        ...,
+        [-0.02699363, -0.03812294],
+        [-0.00148801,  0.01149782],
+        [-0.01051403, -0.00801195]], dtype=float32)}
+``` 
+Which returns the raw PyTree. If you are using a custom dataclass with objects
+that can't be serialised (such as a Flax train state where `apply_fn` and `tx`
+can't be serialised) you can pass an example PyTree to `item` in the `restore`
+call, to let Orbax know the structure you want.
+
+Manually saving checkpoints like this is a bit old-fashioned though. Orbax has a
+bunch of automatic versioning and scheduling features built in, such as
+automatic deleting of old checkpoints, tracking the best metric, and more. To do
+so, wrap the `orbax_checkpointer` in `orbax.checkpoint.CheckpointManager`:
+```python
+options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=4, create=True)
+checkpoint_manager = orbax.checkpoint.CheckpointManager(
+    'managed-checkpoint', orbax_checkpointer, options)
+
+for step in range(10):
+    checkpoint_manager.save(step, model.params['classifier'], save_kwargs={'save_args': save_args})
+
+!ls -l managed-checkpoint/*
+===
+Out:
+managed-checkpoint/6:
+total 4
+drwxr-xr-x 2 root root 4096 Jun  3 09:07 default
+
+managed-checkpoint/7:
+total 4
+drwxr-xr-x 2 root root 4096 Jun  3 09:07 default
+
+managed-checkpoint/8:
+total 4
+drwxr-xr-x 2 root root 4096 Jun  3 09:07 default
+
+managed-checkpoint/9:
+total 4
+drwxr-xr-x 2 root root 4096 Jun  3 09:07 default
+
+```
+As we set `max_to_keep=4`, only the last four checkpoints have been kept.
+
+We can view which steps the manager has saved on:
+```python
+checkpoint_manager.all_steps()
+===
+Out: [6, 7, 8, 9]
+```
+
+As well as view if there has been a checkpoint for a specific step:
+```python
+checkpoint_manager.should_save(6)
+===
+Out: False
+```
+
+And what the latest saved step was:
+```python
+checkpoint_manager.latest_step()
+===
+Out: 9
+```
+
+We can also restore using the checkpoint manager. Rather than provide a path, we
+provide a step:
+```python
+step = checkpoint_manager.latest_step()
+checkpoint_manager.restore(step)
+===
+Out: {'bias': array([0., 0.], dtype=float32),
+ 'kernel': array([[-0.06871808, -0.06338844],
+        [-0.03397266,  0.00899913],
+        [-0.00669084, -0.06431466],
+        ...,
+        [-0.02699363, -0.03812294],
+        [-0.00148801,  0.01149782],
+        [-0.01051403, -0.00801195]], dtype=float32)}
+```
+
+For especially large checkpoints, Orbax supports asynchronous checkpointing
+which moves checkpointing to a background thread. You can do this by wrapping
+`orbax.checkpoint.AsyncCheckpointer` around our earlier
+`orbax.checkpoint.PyTreeCheckpointer`.
+
+> You may see mention online to Flax checkpointing utilities. However, these
+utilities are being deprecated and it is recommended to start using Orbax
+instead.
+
+The documentation for Orbax is a bit spartan but it has a fair few options to
+it. It is worth just reading the `CheckpointManagerOptions` class
+[here](https://github.com/google/orbax/blob/6ee563856ae4329266d8a0d128609f6b33c4e5b7/checkpoint/orbax/checkpoint/checkpoint_manager.py#L85)
+and seeing the available features.
 
 ## Conclusion
 - Less ideological, more a practical guide to use JAX + Flax + Optax
