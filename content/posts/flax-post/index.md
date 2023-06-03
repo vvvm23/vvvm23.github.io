@@ -1,22 +1,45 @@
 ---
-title: "Flax Post"
+title: "Easy JAX training loops with Flax and Optax"
 date: 2023-05-22T21:54:11+01:00
 draft: true
 ---
 
-In an earlier blog post, I introduced JAX - a framework for high performance numerical computing / machine learning - in a somewhat atypical manner. I didn't actually create a single training loop, and only a couple patterns that looked vaguely machine learning-like. 
+In an earlier blog post, I introduced JAX - a framework for high performance
+numerical computing / machine learning - in a somewhat atypical manner. I
+didn't actually create a single training loop, and only a couple patterns that
+looked vaguely machine learning-like. If you haven't read it already, I highly
+recommend reading it [here](https://afmck.in/posts/2023-05-22-jax-post/).
 
-This was deliberate as I felt that JAX - although designed for machine learning research - is much more general-purpose than that. The steps for using it are to define what you want to happen, wrap it in a `jax.jit` call, let JAX trace out your function into some intermediate graph representation, and then pass to XLA to compile and optimise it. The result is a single, heavily-optimised, binary blob, ready and waiting for you to throw data at. This paradigm is a natural fit for a lot of machine learning applications, but also other scientific computing tasks. So I felt it didn't make sense to get too ML specific there. Also, it is ground that has been explored and taught a lot before - I wanted to do a different take on introductory JAX.
+This was deliberate as I felt that JAX - although designed for machine learning
+research - is much more general-purpose than that. The steps for using it are
+to define what you want to happen, wrap it in a `jax.jit` call, let JAX trace
+out your function into some intermediate graph representation, and then pass to
+XLA to compile and optimise it. The result is a single, heavily-optimised,
+binary blob, ready and waiting for you to throw data at. This paradigm is a
+natural fit for a lot of machine learning applications, but also other
+scientific computing tasks. So I felt it didn't make sense to get too ML
+specific there. Also, it is ground that has been explored and taught a lot
+before - I wanted to do a different take on introductory JAX.
 
-I also mentioned in the previous post that it *is* possible to develop a full machine learning training loop - models, optimisers and all - in pure JAX alone. This is self-evident as it is very general purpose. It can be a good exercise to do so, but not a strategy I like the employ. Therefore, in this blog post I want to introduce two higher level libraries built on top of JAX, that do a lot of the heavy lifting for us when writing our machine learning applications. These are **Flax** and **Optax**.
+I also mentioned in the previous post that it *is* possible to develop a full
+machine learning training loop - models, optimisers and all - in pure JAX
+alone. This is self-evident as it is very general purpose. It can be a good
+exercise to do so, but not a strategy I like the employ. Therefore, in this
+blog post I want to introduce two higher level libraries built on top of JAX,
+that do a lot of the heavy lifting for us when writing our machine learning
+applications. These are **Flax** and **Optax**.
 
 To summarise the two libraries:
-- **JAX** - provides a high-level neural network API that lets the developer reason about the model in terms of components, like in PyTorch, rather than with JAX functions that take parameters as inputs.
-- **Optax** - a library containing an array of model training utilities, such as optimisers, loss functions, learning rate schedulers, and more! Very batteries-included.
+- **JAX** - provides a high-level neural network API that lets the developer
+  reason about the model in terms of components, like in PyTorch, rather than
+  with JAX functions that take parameters as inputs.
+- **Optax** - a library containing an array of model training utilities, such
+  as optimisers, loss functions, learning rate schedulers, and more! Very
+  batteries-included.
 
-At the end of this post, we will have implemented and trained a very simple **class-conditioned image generation model** called a **variational autoencoder** (VAE) to generate MNIST digits.
-
-> I am not aware of other libraries that do the same thing as Optax, but there are a lot of neural network APIs built on top of JAX, such as [Equinox](https://github.com/patrick-kidger/equinox/) by [Patrik Kidger](https://kidger.site/), and [Haiku](https://github.com/deepmind/dm-haiku) developed at Deepmind. I simply picked Flax here in order to have perfect interoperability with Huggingface models during the [Huggingface JAX Diffusers sprint](https://github.com/huggingface/community-events/tree/main/jax-controlnet-sprint).
+At the end of this post, we will have implemented and trained a very simple
+**class-conditioned image generation model** called a **variational
+autoencoder** (VAE) to generate MNIST digits.
 
 ## Neural Network API with Flax
 
@@ -1073,8 +1096,6 @@ updates will simply be a PyTree of zeros in the same shapes as `params`. Every
 size during training, by adjusting the number of steps between parameter
 updates.
 
-<!--TODO: let's talk a bit about finetuning too using Optax -->
-<!--Mention how no loss in performance just masking in jit region-->
 How about if we only want to train certain parameters? For example, when
 finetuning a pretrained model. Nowadays, this is a pretty common thing to do,
 taking pretrained large language models and adapting them for specific
@@ -1277,12 +1298,55 @@ instead.
 
 The documentation for Orbax is a bit spartan but it has a fair few options to
 it. It is worth just reading the `CheckpointManagerOptions` class
-[here](https://github.com/google/orbax/blob/6ee563856ae4329266d8a0d128609f6b33c4e5b7/checkpoint/orbax/checkpoint/checkpoint_manager.py#L85)
+[here](https://github.com/google/orbax/blob/main/checkpoint/orbax/checkpoint/checkpoint_manager.py#L85)
 and seeing the available features.
 
 ## Conclusion
 - Less ideological, more a practical guide to use JAX + Flax + Optax
 
+In this blog post, I've introduced two libraries built on top of JAX: Flax and
+Optax. This has been more of a practical guide into how you can implement
+training loops easily in JAX using these libraries, rather than a ideological
+discussion like my previous blog post on JAX.
+
+To summarise this post:
+- Flax provides a neural network API that allows the developer to build neural
+  network modules in a class-based way. Unlike other frameworks these modules
+  do not contain state, essentially hollow shells that loosely associate functions
+  with parameters and inputs, and providing easy ways to initialise PyTrees of
+  parameters.
+- Optax provides a large suite of optimisers for updating our parameter
+  PyTrees. These, like Flax modules, do not contain state and must have state
+  passed manually to it. All optimisers are simply gradient transformations:
+  simply a pair of pure functions `init` and `update`. Optax also provides
+  other gradient transformations and wrappers to allow for more complex
+  behaviour, such as gradient clipping and parameter freezing.
+- Both libraries simply operate on and return PyTrees and can easily
+  interoperate with base JAX - crucially with `jax.jit`. This also makes them
+  interoperable with other libraries based on JAX. For example, by choosing
+  Flax, we aren't locked into using Optax too, and vice versa.
+
+There is a lot more to these two libraries than described here, but I hope this
+is a good starting point and can enable you to create your own training loops
+in JAX. A good exercise would be using the training loop and model code in this
+blog post and adapting it for your own tasks, for example another generative
+model, or implementing a classification model.
+
+If you liked this post please consider following me on
+[Twitter](https://twitter.com/alexfmckinney) or use this RSS feed for
+notifications on future ramblings about machine learning and other topics.
+Alternatively you can navigate to the root of this website and repeatedly
+refresh until something happens. Thank you for reading this far and I hope you
+found it useful!
+
 ---
 
 ### Acknowledgements and Extra Resources
+Some good extra resources:
+- [My previous blog post on JAX](https://afmck.in/posts/2023-05-22-jax-post/)
+- [Aleksa Gordic’s JAX and Flax tutorial series](https://github.com/gordicaleksa/get-started-with-JAX)
+- [Flax documentation](https://flax.readthedocs.io/en/latest/)
+- [Optax documentation](https://optax.readthedocs.io/en/latest/)
+- [Equinox - another neural network library built on JAX by Patrick Kidger](https://github.com/patrick-kidger/equinox)
+- [Haiku - another neural network library built on JAX from Deepmind](https://github.com/deepmind/dm-haiku)
+- [Orbax source code](https://github.com/google/orbax)
