@@ -297,38 +297,13 @@ showing a training loop.
 
 ## A full training loop with Optax and Flax
 
-Given our changes adding a Flax model, our generic training loop looks something
-more like this:
-```python
-model = Model(...) # create our model, just an empty shell
-dataset = ... # initialise training dataset that we can iterate over
-params = model.init(key, ...) # use `model` to help us initialise parameters
-epochs = ...
-
-def loss_fn(params, batch):
-    model_output = model.apply(params, batch)
-    loss = ...  # compute a loss based on `batch` and `model_output`
-    return loss
-
-@jax.jit
-def train_step(params, batch):
-    loss, grads = jax.value_and_grad(loss_fn)(params, batch)
-    grads = ...  # transform `grads` (clipping, multiply by learning rate, etc.)
-    params = ... # update `params` using `grads` (such as via SGD)
-    return params, loss
-
-for _ in range(epochs):
-    for batch in dataset:
-        params, loss = train_step(params, batch)
-        ...         # report metrics and the like
-```
-
-We've reduced the complexity of the training loop somewhat by reducing parameter
-initialisation and model calls to a single line each. We can reduce the burden
-on us further by relying on Optax to handle the gradient and parameter update
-steps in `train_step`. For simple optimisers, these steps can be quite simple.
-However, for more complex optimisers or gradient transformation behaviour, it
-can get quite complex. Optax packages this complex behaviour into a simple API.
+We've shown how to reduce the complexity of writing model code and parameter
+initialisation. We can push this further by relying on Optax to handle the
+gradient manipulation and parameter updates in `train_step`. For simple
+optimisers, these steps can be quite simple. However, for more complex
+optimisers or gradient transformation behaviour, it can get quite complex to
+implement in JAX alone. Optax packages this complex behaviour into a simple
+API.
 
 ```python
 import optax
@@ -340,10 +315,10 @@ Out: GradientTransformationExtraArgs(init=<function chain.<locals>.init_fn at 0x
 
 Not pretty, but we can see that the optimiser is just a **gradient
 transformation** – in fact all optimisers in Optax are implemented as gradient
-transformations. A gradient transformation is defined to be a pair of functions `init` and
-`update`, which are both pure functions. Like a Flax model, Optax optimisers
-have no state, and must be initialised before it can be used, and any state must
-be passed around by the developer to `update`:
+transformations. A gradient transformation is defined to be a pair of functions
+`init` and `update`, which are both pure functions. Like a Flax model, Optax
+optimisers have no state kept internally, and must be initialised before it can
+be used, and any state must be passed by the developer to `update`:
 ```python
 optimiser_state = optimiser.init(params)
 optimiser_state
@@ -352,8 +327,9 @@ Out: (EmptyState(), EmptyState())
 ```
 
 Of course, as SGD is a stateless optimiser, the initialisation call simply
-returns the empty state. Nonetheless, it must do this to maintain the API of a
-gradient transformation. Let's try with a more complex optimiser like Adam:
+returns an empty state. It must return this to maintain the API of a gradient
+transformation. Let's try with a more complex optimiser like Adam:
+
 ```python
 optimiser = optax.adam(learning_rate=1e-3)
 optimiser_state = optimiser.init(params)
@@ -390,19 +366,18 @@ Out: (ScaleByAdamState(count=Array(0, dtype=int32), mu=FrozenDict({
  })),
  EmptyState())
 ```
-Here, we can see the first and second order statistics of the Adam optimiser, as
-well as a count for number of training steps(?) seen so far(?). Like with SGD,
-this state needs to be passed to `update` when called.
+Here, we can see the first and second order statistics of the Adam optimiser,
+as well as a count storing number of optimiser updates. Like with SGD, this
+state needs to be passed to `update` when called.
 
-> Like Flax parameters, the optimiser state is just like any other PyTree. Any
+> Like Flax parameters, the optimiser state is just a PyTree. Any
 PyTree with a compatible structure could also be used. Again, this also allows
-interoperability with JAX and `jax.jit`, as well as other libraries built on top
-of JAX.
+interoperability with JAX and `jax.jit`, as well as other libraries built on
+top of JAX.
 
-<!-- TODO: talk about the definition of init and update -->
-Concretely, Optax gradient transformations are simply a named tuple
-containing pure functions `init` and `update`. `init` is a pure function which
-takes in an example instance of gradients to be transformed, and returns the
+Concretely, **Optax gradient transformations are simply a named tuple
+containing pure functions `init` and `update`**. `init` is a pure function which
+takes in an example instance of gradients to be transformed and returns the
 optimiser initial state. In the case of `optax.sgd` this returns an empty state
 regardless of the example provided. For `optax.adam`, we get a more complex
 state containing the first and second order statistics of the same PyTree
@@ -411,9 +386,9 @@ structure as the provided example.
 `update` takes in a PyTree of updates with the same structure as the example
 instance provided to `init`. In addition, it takes in the optimiser state
 returned by `init` and optionally the parameters of the model itself, which may
-be used by some optimisers. This function will return the transformed gradients
-(which could be another set of gradients, or the actual parameter updates) and
-the new optimiser state.
+be needed for some optimisers. This function will return the transformed
+gradients (**which could be another set of gradients, or the actual parameter
+updates**) and the new optimiser state.
 
 > This is explained quite nicely in the documentation
 [here](https://optax.readthedocs.io/en/latest/api.html?highlight=gradienttransform#optax-types)
@@ -442,42 +417,42 @@ Out: Array([-0.00999993,  0.99000007,  2.01      ], dtype=float32)
 ```
 
 It is important to emphasise that Optax optimisers are gradient transformations,
-but gradient transformations are not just optimisers. We'll see more of that
-later after we finish a simple training loop.
+**but gradient transformations are not just optimisers.** We'll see more of that
+later after we finish the training loop.
 
-On that note, let's begin with said training loop. Recall, our goal is to train
-a class-conditioned, variational autoencoder (VAE) on the MNIST dataset. This is
-slightly more interesting than the classic classification example typically
-found in tutorials.
+On that note, let's begin with said training loop. Recall that our goal is to
+train a class-conditioned, variational autoencoder (VAE) on the MNIST dataset.
 
-<!-- TODO: expand on the task and define some configuration -->
+> I chose this example as it is slightly more interesting than the typical
+classification example found in most tutorials.
+
 Not strictly related to JAX, Flax, or Optax, but it is worth describing what a
 VAE is. First, an autoencoder model is one that maps some input $x$ in our data
-space to a latent vector $z$ in the **latent space** (a space with smaller
+space to a **latent vector** $z$ in the **latent space** (a space with smaller
 dimensionality than the data space) and back to the data space. It is trained to
 minimise the reconstruction loss between the input and the output, essentially
-learning the identity function through an **information bottleneck**. 
+learning the identity function through an **information bottleneck**.
 
 The portion of the network that maps from the data space to the latent space is
 called the **encoder** and the portion that maps from the latent space to the
-data space is called the
-**decoder**. Applying the encoder is somewhat analogous to lossy compression and
-*applying the decoder is lossy decompression.
+data space is called the **decoder**. Applying the encoder is somewhat
+analogous to lossy compression. Likewise, *applying the decoder is akin to
+lossy decompression.
 
-What makes a VAE different to an autoencoder is that the encoder does not output
-the latent vector directly. Instead, it outputs the mean and log-variance of a
-gaussian distribution, which we can then sample from in order to get our latent.
-We apply an extra loss term to make these mean and log-variance outputs roughly
-follow the standard normal distribution. 
+What makes a VAE different to an autoencoder is that the encoder does not
+output the latent vector directly. Instead, **it outputs the mean and
+log-variance of a Gaussian distribution, which we then sample from in order
+to obtain our latent vector**. We apply an extra loss term to make these mean and
+log-variance outputs roughly follow the standard normal distribution. 
 
 > Interestingly, defining the encoder this way means for every given input $x$
 we have many possible latent vectors which are sampled stochastically. Our
 encoder is almost mapping to a sphere of possible latents centred at the mean
-vector with size scaling to log-variance.
+vector with radius scaling with log-variance.
 
-The decoder is the same as before.  However, now we can sample a latent from the
-normal distribution and pass it to the decoder in order to generate samples like
-those in the dataset we trained on! Adding the variational component turns our
+The decoder is the same as before. However, now we can sample **a latent from
+the normal distribution and pass it to the decoder in order to generate samples
+like those in the dataset**! Adding the variational component turns our
 autoencoder compression model into a VAE generative model.
 
 Our goal is to implement the model code for the VAE as well as the training loop
@@ -518,13 +493,13 @@ from torch.utils.data import DataLoader
 key = jax.random.PRNGKey(seed)
 ```
 
-Let's grab our MNIST dataset while we are at it too:
+Let's grab our MNIST dataset while we are here:
 ```python
 train_dataset = MNIST('data', train = True, transform=T.ToTensor(), download=True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 ```
 
-> Neither JAX, Flax, or Optax comes with data loading utilities, so I just use
+> JAX, Flax, and Optax do not have data loading utilities, so I just use
 the perfectly serviceable PyTorch implementation of the MNIST dataset here.
 
 Now to our first real Flax model. We begin by defining a submodule `FeedForward`
@@ -597,7 +572,7 @@ FrozenDict({
 Array([[0.5336972]], dtype=float32)
 ```
 We use the `nn.compact` decorator here as the logic is relatively simple. We
-just iterate over the tuple `self.dimensions` and pass our current activations
+iterate over the tuple `self.dimensions` and pass our current activations
 through a `nn.Dense` module, followed by applying `self.activation_fn`. This
 activation can optionally be dropped for the final linear layer in
 `FeedForward`. This is needed as `nn.relu` only outputs non-negative values,
@@ -665,22 +640,26 @@ ClassVAE(
 
 There is a lot to the above cell. Knowing the specifics of how this model works
 isn't too important to understanding the training loop later, as we can treat
-the model as a bit of a black box. Saying that, I'll unpack each function briefly:
+the model as a bit of a black box. Simply substitute your own model of choice.
+Saying that, I'll unpack each function briefly:
 - `setup`: Creates the submodules of the network, namely two `FeedForward`
-stacks and two `nn.Linear` layers that project to and from the latent space. Additionally, it initialises another linear layer that projects our class conditioning vector to the same dimensionality as the last encoder layer.
+  stacks and two `nn.Linear` layers that project to and from the latent space.
+  Additionally, it initialises a third `nn.Linear` layer that projects our
+  class conditioning vector to the same dimensionality as the last encoder
+  layer.
 - `reparam`: Sampling a latent directly from a random Gaussian is not
-differentiable, hence we employ the **reparameterisation trick** where we
-instead sample a random vector, scale by the standard deviation, then add to the
-mean. As it involves some random sampling, we take as input a key in addition to
-mean and log-variance.
-- `encode`: Applies the encoder and projection to the latent space to the input.
-Note, the output of the projection is actually double the size of the latent
-space, as we split it in two to obtain our mean and log-variance.
+  differentiable, hence we employ the **reparameterisation trick**. This
+  involves sampling a random vector, scaling by the standard deviation, then
+  adding to the mean. As it involves random array generation, we take as input
+  a key in addition to the mean and log-variance.
+- `encode`: Applies the encoder and projection to the latent space to the
+  input. Note, the output of the projection is actually double the size of the
+  latent space, as we split it in twine to obtain our mean and log-variance.
 - `decode`: Applies a projection from the latent space to `x`, followed by
-adding the output of `class_proj` on the conditioning vector. Finally, passes
-the result through the decoder stack.
+  adding the output of `class_proj` on the conditioning vector. Finally, it
+  passes the result through the decoder stack.
 - `__call__`: This is simply the full model forward pass: `encode` then
-`reparam` then `decode`. This is used during training.
+  `reparam` then `decode`. This is used during training.
 
 The above example also demonstrates that we can add other functions to our Flax
 modules aside from `setup` and `__call__`. This is useful for more complex
@@ -688,7 +667,7 @@ behaviour, or if we want to only execute parts of the model (more on this
 later).
 
 We now have our model, optimiser, and dataset. The next step is to write the
-function that implements our training step, and jit-compile it:
+function that implements our training step and then jit-compile it:
 ```python
 def create_train_step(key, model, optimiser):
   params = model.init(key, jnp.zeros((batch_size, 784)), jnp.zeros((batch_size, num_classes)), jax.random.PRNGKey(0)) # dummy key just as example input
@@ -716,26 +695,35 @@ def create_train_step(key, model, optimiser):
 
   return train_step, params, opt_state
 ```
-Here, I actually first define a function that returns the training step function
-given a target model and optimiser, along with returning the freshly initialised
-parameters and optimiser state.
-Let's unpack it all a bit:
-1. First, it initialises our model using an example input. In this case, this is
-a 784-dim array which contains the MNIST digit and a random, random key.
-2. Also initialises the optimiser state using the parameters.
+Here, I don't define the training step directly, but rather first define a
+function that returns the training step function given a target model and
+optimiser, along with returning the freshly initialised parameters and
+optimiser state.
+
+Let us unpack it all:
+1. First, it initialises our model using an example input. In this case, this
+   is a 784-dim array which contains the (flattened) MNIST digit and a random,
+   random key.
+2. Also initialises the optimiser state using the parameters we just
+   initialised.
 3. Now, it defines the loss function. This is simply a `model.apply` call which
-returns the model's reconstruction of the input, along with the predicted mean
-and log-variance. We then compute the mean-squared error loss and the
-KL-divergence and compute a weighted sum to get our final loss. The KL term is
-what keeps the encoder outputs close to a standard normal distribution.
-4. Next, the actual train step definition. This begins by transforming `loss_fn`
-using our old friend `jax.value_and_grad` which will return the loss and also
-the gradients. We must set `has_aux=True` as we return all loss terms for
-logging purposes. We provide the gradients, optimiser state, and parameters to
-`optimiser.update` which transforms the gradients and returns the parameter updates and the new optimiser state. This is then applied to the parameters, and we return the new parameters, optimiser state, and loss terms – followed by wrapping the whole thing in `jax.jit`. Phew..
+   returns the model's reconstruction of the input, along with the predicted
+   mean and log-variance. We then compute the mean-squared error loss and the
+   KL-divergence, before finally computing a weighted sum to get our final
+   loss. The KL loss term is what keeps the encoder outputs close to a standard
+   normal distribution.
+4. Next, the actual train step definition. This begins by transforming
+   `loss_fn` using our old friend `jax.value_and_grad` which will return the
+   loss and also the gradients. We must set `has_aux=True` as we return all
+   individual loss terms for logging purposes. We provide the gradients,
+   optimiser state, and parameters to `optimiser.update` which returns the
+   transformed gradients and the new optimiser state. The transformed gradients
+   are then applied to the parameters. Finally, we return the new parameters,
+   optimiser state, and loss terms – followed by wrapping the whole thing in
+   `jax.jit`. Phew..
 
 > A function that generates the training step is just a pattern I quite like,
-and there is nothing stopping you just writing the training step directly.
+and there is nothing stopping you from just writing the training step directly.
 
 Let's call `create_train_step`:
 ```python
@@ -748,7 +736,10 @@ train_step, params, opt_state = create_train_step(model_key, model, optimiser)
 ```
 
 When we call the above, we get a `train_step` ready to be compiled and accept
-our parameters, optimiser state, and data at blistering fast speeds. As always with jit-compiled functions, the first call with a given set of input shapes will be slow, but fast on subsequent calls as we skip the compiling and optimisation process.
+our parameters, optimiser state, and data at blistering fast speeds. As always
+with jit-compiled functions, the first call with a given set of input shapes
+will be slow, but fast on subsequent calls as we skip the compiling and
+optimisation process.
 
 We are now in a position to write our training loop and train the model!
 ```python
@@ -789,19 +780,19 @@ epoch 9 | step 3500 | loss: 14.166285514831543 ~ mse: 10.919700622558594. kl: 6.
 epoch 9 | step 3600 | loss: 13.819541931152344 ~ mse: 10.632755279541016. kl: 6.373570919036865
 epoch 9 | step 3700 | loss: 14.452215194702148 ~ mse: 11.186063766479492. kl: 6.532294750213623
 ```
-Now that we have our `train_step` function, the training loop itself is mostly
-just repeatedly fetching data, calling our uber-fast `train_step` function, and
-logging results so we can track training. We can see that the loss does indeed
-go down, which means our model is training!
+Now that we have our `train_step` function, the training loop itself is just
+repeatedly fetching data, calling our uber-fast `train_step` function, and
+logging results so we can track training. We can see that the loss is
+decreasing, which means our model is training!
 
-> You may notice that the KL-loss term *increases* during training. This is okay
+> Note that the KL-loss term *increases* during training. This is okay
 so long as it doesn't get too high, in which case sampling from the model
-becomes difficult. Tuning the hyperparameter `kl_weight` is quite important. Too
-low and we get perfect reconstructions but no sampling capabilities – too high
-and the outputs will become blurry.
+becomes impossible. Tuning the hyperparameter `kl_weight` is quite important.
+Too low and we get perfect reconstructions but no sampling capabilities – too
+high and the outputs will become blurry.
 
-Let's try sampling from the model so we can see that it does indeed produce
-convincing samples:
+Let's sample from the model so we can see that it does indeed produce some
+reasonable samples:
 ```python
 def build_sample_fn(model, params):
   @jax.jit
@@ -825,9 +816,10 @@ Out: ((100, 32), (100, 10), (100, 784))
 ```
 
 The above cell generates 100 samples – 10 examples from each of the 10 classes.
-We again jit-compile our sample function for speed, but only call the
-`model.decode` method, rather than the full model, as we only need to decode our
-randomly sampled latents. This is achieved by specifying `method=model.decode` in the `model.apply` call.
+We jit-compile our sample function in case we want to sample again later. We
+only call the `model.decode` method, rather than the full model, as we only
+need to decode our randomly sampled latents. This is achieved by specifying
+`method=model.decode` in the `model.apply` call.
 
 Let's visualise the results using matplotlib:
 ```python
@@ -844,7 +836,8 @@ plt.show()
 
 It seems our model did indeed train and can be sampled from! Additionally, the
 model is capable of using the class conditioning signal so that we can control
-which digits are generated. Therefore, we have succeded in building a full Flax+Optax training loop!
+which digits are generated. Therefore, we have succeeded in building a full
+training loop using Flax and Optax!
 
 ## Extra Flax and Optax Tidbits
 
