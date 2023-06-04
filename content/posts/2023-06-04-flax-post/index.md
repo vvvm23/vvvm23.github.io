@@ -1,6 +1,6 @@
 ---
 title: "Easy JAX training loops with Flax and Optax"
-date: 2023-06-04T21:54:11+01:00
+date: 2023-06-04T12:00:00+01:00
 draft: false
 ---
 
