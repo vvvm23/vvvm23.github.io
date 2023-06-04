@@ -4,36 +4,34 @@ date: 2023-06-04T12:00:00+01:00
 draft: false
 math: true
 ---
-
-In my previous blog post, I discussed JAX - a framework for high performance
-numerical computing and machine learning - in an atypical manner. **I didn't
+In my previous blog post, I discussed JAX – a framework for high performance
+numerical computing and machine learning — in an atypical manner. **I didn't
 create a single training loop**, and only showed a couple patterns that looked
 vaguely machine learning-like. If you haven't read that blog post yet, you can
 read it [here](https://afmck.in/posts/2023-05-22-jax-post/).
 
-This approach was deliberate as I felt that JAX - although designed for machine
-learning research - is more general-purpose than that. The steps to use it are
+This approach was deliberate as I felt that JAX — although designed for machine
+learning research — is more general-purpose than that. The steps to use it are
 to define what you want to happen, wrap it in within `jax.jit`, let JAX trace
 out your function into an intermediate graph representation, which is then
 passed to XLA where it will be compiled and optimised. The result is a single,
 heavily-optimised, binary blob, ready and waiting to receive your data. This
 approach is a natural fit for many machine learning applications, as well as
 other scientific computing tasks. Therefore, targeting machine learning only
-didn't make sense. It is also ground that has already been extensively covered 
-- I wanted to do a different take on introductory JAX.
+didn't make sense. It is also ground that has already been extensively covered — I wanted to do a different take on introductory JAX.
 
 In the previous post, I mentioned that it *is* possible to develop a full
-machine learning training loop - models, optimisers and all - in pure JAX. This
+machine learning training loop — models, optimisers and all — in pure JAX. This
 is self-evident as JAX is general-purpose. It is a good exercise, but not a
 strategy I like to employ. In this blog post I want to introduce two higher
 level libraries built on top of JAX, that do a lot of the heavy lifting for us
 when writing machine learning applications. These libraries are **Flax** and **Optax**.
 
 To summarise the libraries:
-- **JAX** - provides a **high-level neural network API** that lets the developer
+- **JAX** — provides a **high-level neural network API** that lets the developer
   reason about the model in terms of components, like in PyTorch, rather than
   with JAX functions that take parameters as inputs.
-- **Optax** - a library containing a vast array of model training utilities, such
+- **Optax** — a library containing a vast array of model training utilities, such
   as **optimisers, loss functions, learning rate schedulers**, and more! Very
   batteries-included.
 
@@ -124,9 +122,10 @@ class ModelCompact(nn.Module):
         return self.activation_fn(x)     
 ```
 
-If we have complex initialisation logic, the former may be more appropriate. If
-the module is relatively simple, we can make use of the `nn.compact`
-representation to automatically define the module by the forward pass alone.
+If we have complex initialisation logic, the former may be more appropriate.
+Instead, if the module is relatively simple, we can make use of the
+`nn.compact` representation to automatically define the module by the forward
+pass alone.
 
 Like other frameworks, we can nest modules within each other to implement
 complex model behaviour. Like we've already seen, `flax.linen` provides some
@@ -394,7 +393,7 @@ updates**) and the new optimiser state.
 > This is explained quite nicely in the documentation
 [here](https://optax.readthedocs.io/en/latest/api.html?highlight=gradienttransform#optax-types)
 
-In action on some dummy data, we get the following:
+Providing some dummy data, we get the following:
 ```python
 import optax
 params = jnp.array([0.0, 1.0, 2.0]) # some dummy parameters
@@ -408,8 +407,7 @@ updates
 Out: Array([-0.00999993, -0.00999993,  0.00999993], dtype=float32)
 ```
 
-Optax provides a helper function to actually apply the updates to our
-parameters:
+Optax provides a helper function to apply the updates to our parameters:
 ```python
 new_params = optax.apply_updates(params, updates)
 new_params
@@ -437,10 +435,8 @@ learning the identity function through an **information bottleneck**.
 The portion of the network that maps from the data space to the latent space is
 called the **encoder** and the portion that maps from the latent space to the
 data space is called the **decoder**. Applying the encoder is somewhat
-analogous to lossy compression. Likewise, *applying the decoder is akin to
+analogous to lossy compression. Likewise, applying the decoder is akin to
 lossy decompression.
-
-
 
 What makes a VAE different to an autoencoder is that the encoder does not
 output the latent vector directly. Instead, **it outputs the mean and
@@ -662,8 +658,9 @@ Saying that, I'll unpack each function briefly:
   input. Note, the output of the projection is actually double the size of the
   latent space, as we split it in twine to obtain our mean and log-variance.
 - `decode`: Applies a projection from the latent space to `x`, followed by
-  adding the output of `class_proj` on the conditioning vector. Finally, it
-  passes the result through the decoder stack.
+  adding the output of `class_proj` on the conditioning vector. This is how we
+  inject the class information into the model. Finally, it passes the result
+  through the decoder stack.
 - `__call__`: This is simply the full model forward pass: `encode` then
   `reparam` then `decode`. This is used during training.
 
@@ -701,10 +698,9 @@ def create_train_step(key, model, optimiser):
 
   return train_step, params, opt_state
 ```
-Here, I don't define the training step directly, but rather first define a
-function that returns the training step function given a target model and
-optimiser, along with returning the freshly initialised parameters and
-optimiser state.
+Here, I don't define the training step directly, but rather define a function
+that returns the training step function given a target model and optimiser,
+along with returning the freshly initialised parameters and optimiser state.
 
 Let us unpack it all:
 1. First, it initialises our model using an example input. In this case, this
@@ -849,7 +845,8 @@ training loop using Flax and Optax!
 
 I'd like to finish this blog post by highlighting some interesting and useful
 features that may prove useful in your own applications. I won't delve into
-great detail but simply summarise and point you in the right direction.
+great detail with any of them, but simply summarise and point you in the right
+direction.
 
 You may have noticed already that when we add parameters, optimiser states, and
 a bunch of other metrics to the return call of `train_step` it gets a bit
@@ -1048,7 +1045,8 @@ defining the step boundaries between different schedules. In this case, we
 switch from warmup to decay after `warmup_steps` steps.
 
 > Optax keeps track of the number of optimiser steps in its `opt_state`, so we
-> don't need to track this ourselves.
+> don't need to track this ourselves. It will use this count to automatically
+> pick the correct learning rate.
 
 Similar to joining schedulers, Optax supports chaining optimisers together.
 More specifically, the chaining of gradient transformations:
@@ -1174,14 +1172,14 @@ Both Flax and Optax are quite feature-rich despite the relative infancy of the
 JAX ecosystem. I'd recommend just opening the
 [Flax](https://flax.readthedocs.io/en/latest/api_reference/index.html) or
 [Optax API reference](https://optax.readthedocs.io/en/latest/api.html) and
-searching for layers, optimisers, losses, and features you are used to having
-in other frameworks.
+searching for layers, optimisers, loss functions, and features you are used to
+having in other frameworks.
 
-The last thing I want to talk about involves an entirely different library build
-on JAX. **Orbax** provides PyTree checkpointing utilities for saving and
+The last thing I want to talk about involves an entirely different library
+built on JAX. **Orbax** provides PyTree checkpointing utilities for saving and
 restoring arbitrary PyTrees. I won't go into great detail but will show basic
-usage here. There is nothing worse than spending hours training only to forget
-about actually saving progress!
+usage here. There is nothing worse than spending hours training only to realise
+you forgot to add checkpointing code!
 
 Here is basic usage saving the BERT classifier parameters:
 ```python
@@ -1293,7 +1291,7 @@ which moves checkpointing to a background thread. You can do this by wrapping
 `orbax.checkpoint.AsyncCheckpointer` around the
 `orbax.checkpoint.PyTreeCheckpointer` we created earlier.
 
-> You may see mention online to Flax checkpointing utilities. However, these
+> You may see reference online to Flax checkpointing utilities. However, these
 utilities are being deprecated and it is recommended to start using Orbax
 instead.
 
@@ -1322,7 +1320,7 @@ To summarise this post:
   gradient transformations and wrappers to allow for more complex behaviour,
   such as gradient clipping and parameter freezing.
 - Both libraries simply operate on and return PyTrees and can easily
-  interoperate with base JAX - crucially with `jax.jit`. This also makes them
+  interoperate with base JAX — crucially with `jax.jit`. This also makes them
   interoperable with other libraries based on JAX. For example, by choosing
   Flax, we aren't locked into using Optax, and vice versa.
 
@@ -1347,8 +1345,13 @@ Some good extra resources:
 - [Aleksa Gordic’s JAX and Flax tutorial series](https://github.com/gordicaleksa/get-started-with-JAX)
 - [Flax documentation](https://flax.readthedocs.io/en/latest/)
 - [Optax documentation](https://optax.readthedocs.io/en/latest/)
-- [Equinox - another neural network library built on JAX by Patrick Kidger](https://github.com/patrick-kidger/equinox)
-- [Haiku - another neural network library built on JAX from Deepmind](https://github.com/deepmind/dm-haiku)
 - [Orbax source code](https://github.com/google/orbax)
+
+Some alternatives to Flax:
+- [Equinox by Patrick Kidger](https://github.com/patrick-kidger/equinox)
+- [Haiku from Deepmind](https://github.com/deepmind/dm-haiku)
+
+> I am not aware of relatively mature alternatives to Flax. If you know of
+> some, please let me know!
 
 *Found something wrong with this blog post? Let me know via email or Twitter!*
