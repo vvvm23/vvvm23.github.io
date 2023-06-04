@@ -2,6 +2,7 @@
 title: "Easy JAX training loops with Flax and Optax"
 date: 2023-06-04T12:00:00+01:00
 draft: false
+math: true
 ---
 
 In my previous blog post, I discussed JAX - a framework for high performance
@@ -439,6 +440,8 @@ data space is called the **decoder**. Applying the encoder is somewhat
 analogous to lossy compression. Likewise, *applying the decoder is akin to
 lossy decompression.
 
+
+
 What makes a VAE different to an autoencoder is that the encoder does not
 output the latent vector directly. Instead, **it outputs the mean and
 log-variance of a Gaussian distribution, which we then sample from in order
@@ -454,6 +457,9 @@ The decoder is the same as before. However, now we can sample **a latent from
 the normal distribution and pass it to the decoder in order to generate samples
 like those in the dataset**! Adding the variational component turns our
 autoencoder compression model into a VAE generative model.
+
+![Abstract diagram of a VAE, pilfered from [this AWS blog](https://aws.amazon.com/blogs/machine-learning/deploying-variational-autoencoders-for-anomaly-detection-with-tensorflow-serving-on-amazon-sagemaker/)](img/vae-aws.jpg)
+> Abstract diagram of a VAE, pilfered from [this AWS blog](https://aws.amazon.com/blogs/machine-learning/deploying-variational-autoencoders-for-anomaly-detection-with-tensorflow-serving-on-amazon-sagemaker/)
 
 Our goal is to implement the model code for the VAE as well as the training loop
 with both the reconstruction and variational loss terms. Then, we can sample new
