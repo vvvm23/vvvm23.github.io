@@ -842,19 +842,20 @@ training loop using Flax and Optax!
 ## Extra Flax and Optax Tidbits
 
 I'd like to finish this blog post by highlighting some interesting and useful
-features that may prove useful in your own training loops. I won't delve into
+features that may prove useful in your own applications. I won't delve into
 great detail but simply summarise and point you in the right direction.
 
-You may have noticed that when we add parameters, optimiser states, and a bunch
-of other metrics to the return call of `train_step` it gets a bit unwieldly to
-handle all the state. It could get worse if we have a more complex state also.
-One solution would be to return a `namedtuple` so we can at least package the
-state together somewhat. However, Flax provides its own solution,
-`flax.training.train_state.TrainState`, which has some extra functions that make
-updating the combined state (model and optimiser state) easier.
+You may have noticed already that when we add parameters, optimiser states, and
+a bunch of other metrics to the return call of `train_step` it gets a bit
+unwieldy to handle all the state. It could get worse if we later need a more
+complex state. One solution would be to return a `namedtuple` so we can at
+least package the state together somewhat. However, Flax provides its own
+solution, `flax.training.train_state.TrainState`, which has some extra
+functions that make updating the combined state (model and optimiser state)
+easier.
 
-It is easiest to show by simply taking our earlier `train_step` and refactoring it
-with `TrainState`:
+It is easiest to show by simply taking our earlier `train_step` and refactoring
+it with `TrainState`:
 ```python
 from flax.training.train_state import TrainState
 def create_train_step(key, model, optimiser):
@@ -882,18 +883,20 @@ def create_train_step(key, model, optimiser):
 
   return train_step, state
 ```
-We begin `create_train_step` by initialising our parameters as normal. However,
-the next step is to create the state using `TrainState.create` and passing our
-model forward call, the initialised parameters, and the optimiser want to use.
-Internally, `TrainState.create` we initialise the optimiser for us.
+
+We begin `create_train_step` by initialising our parameters as before. However,
+the next step is now to create the state using `TrainState.create` and passing
+our model forward call, the initialised parameters, and the optimiser we want
+to use. Internally, `TrainState.create` will initialise and store the optimiser
+state for us.
 
 In `loss_fn`, rather than call `model.apply` we can use `state.apply_fn`
 instead. Either method is equivalent, just that sometimes we may not have
-`model` in scope.
+`model` in scope and so can't access `model.apply`.
 
 The largest change is in `train_step` itself. Rather than call
-`optimiser.update` followed by `optax.apply_updates`, we just simply call
-`state.apply_gradients` which internally updates the optimiser and updates the
+`optimiser.update` followed by `optax.apply_updates`, we simply call
+`state.apply_gradients` which internally updates the optimiser state and the
 parameters. It then returns the new state, which we return and pass to the next
 call of `train_step` – as we would with `params` and `opt_state`.
 
@@ -951,10 +954,10 @@ Out: (Dense(
  }))
 ```
 
-I said I wouldn't enumerate layers in Flax as I don't see much value to it, but
-I will highlight two more interesting ones. First is `nn.Dropout` which is
-numerically the same as its PyTorch counterpart, but like anything random in
-JAX, requires a PRNG key as input. 
+I said I wouldn't enumerate layers in Flax as I don't see much value in doing
+so, but I will highlight two particularly interesting ones. First is
+`nn.Dropout` which is numerically the same as its PyTorch counterpart, but like
+anything random in JAX, requires a PRNG key as input. 
 
 The dropout layer takes its random key by internally calling
 `self.make_rng('dropout')`, which pulls and splits from a PRNG stream named
@@ -978,16 +981,17 @@ Out: (Array([[ 1.7353934, -1.741734 , -1.3312583],
         [ 0.       , -3.973852 ,  0.       ]], dtype=float32))
 ```
 
-> `model.init` also accepts a dictionary of PRNG keys. It allows passing in a
-single key which starts a stream named `'params'`. This is equivalent to passing
-`{'dropout': rng}`
+> `model.init` also accepts a dictionary of PRNG keys. If you pass in a
+single key like we have done so far, it starts a stream named `'params'`. This
+is equivalent to passing `{'params': rng}` instead.
 
-These streams are accessible to submodules – so `nn.Dropout` can call
-`self.make_rng('dropout')` regardless of where it is – as well as allowing for
-arbitrarily named submodules. In our VAE example, we could forgo passing in the
-key manually, and instead get keys for random sampling using
-`self.make_rng('noise')` or similar, then passing a starting key in `rngs` in
-`model.apply`. For models with lots of randomness, it may be worth doing this.
+The streams are accessible to submodules, so `nn.Dropout` can call
+`self.make_rng('dropout')` regardless of where it is in the model. We can
+define our own PRNG streams by specifying them in the `model.apply` call. In
+our VAE example, we could forgo passing in the key manually, and instead get
+keys for random sampling using `self.make_rng('noise')` or similar, then
+passing a starting key in `rngs` in `model.apply`. For models with lots of
+randomness, it may be worth doing this.
 
 The second useful built-in module is `nn.Sequential` which is again like its
 PyTorch counterpart. This simply chains together many modules such that the
@@ -1048,12 +1052,14 @@ optimiser = optax.chain(
     optax.adam(1e-2),
 )
 ```
+
 When calling `optimiser.update`, the gradients will first be clipped before
 then doing the regular Adam update. Chaining together transformations like this
-is quite an elegant API, and allows for quite complex behaviour. To illustrate,
-adding exponential moving averages (EMA) of weights in something like PyTorch
-is non-trivial, whereas in Optax it is simply adding `optax.ema` to our
+is quite an elegant API and allows for complex behaviour. To illustrate, adding
+exponential moving averages (EMA) of our updates in something like PyTorch is
+non-trivial, whereas in Optax it is as simple as adding `optax.ema` to our
 `optax.chain` call:
+
 ```python
 optimiser = optax.chain(
     optax.clip_by_global_norm(1.0),
@@ -1066,19 +1072,20 @@ In this case, `optax.ema` is a transformation on the final updates, rather than
 on the unprocessed gradients.
 
 Gradient accumulation is implemented in Optax as a optimiser wrapper, rather
-than another gradient transformation:
+than as a gradient transformation:
 
 ```python
 grad_accum = 4
 optimiser = optax.MultiSteps(optax.adam(1e-2), grad_accum)
 ```
+
 The returned optimiser collects updates over the `optimiser.update` calls until
 `grad_accum` steps have occurred. In the intermediate steps, the returned
-updates will simply be a PyTree of zeros in the same shapes as `params`. Every
-`grad_accum` steps, the accumulated updates will be returned.
+updates will be a PyTree of zeros in the same shape as `params`, resulting in
+no update. Every `grad_accum` steps, the accumulated updates will be returned.
 
 `grad_accum` can also be a function, which gives us a way to vary the batch
-size during training, by adjusting the number of steps between parameter
+size during training via adjusting the number of steps between parameter
 updates.
 
 How about if we only want to train certain parameters? For example, when
@@ -1096,9 +1103,9 @@ Out: dict_keys(['bert', 'classifier'])
 ```
 > Huggingface provides Flax versions of *most* of their models. The API to use
 them is a bit different, calling `model(**inputs, params=params)` rather than
-`model.apply`. Providing no parameters will use the pretrained weights stored in
-`model.params` which is useful for inference-only tasks, but for training we
-should pass the current parameters to the call.
+`model.apply`. Providing no parameters will use the pretrained weights stored
+in `model.params` which is useful for inference-only tasks, but for training we
+need to pass the current parameters to the call.
 
 We can see there are two top-level keys in the parameter PyTree: `bert` and
 `classifier`. Suppose we only want to finetune the classifier head and leave the
@@ -1114,25 +1121,26 @@ updates, opt_state = optimiser.update(grads, opt_state, model.params)
 
 `optax.multi_transform` takes two inputs, the first is mapping from labels to
 gradient transformations. The second is a PyTree with the same structure or
-prefix as the updates (in the case above we use just the prefix) mapping to
-labels. The transformation matching the label of a given update will be applied.
-This allows the partitioning of parameters and applying different updates.
+prefix as the updates (in the case above we use the prefix approach) mapping to
+labels. The transformation matching the label of a given update will be
+applied. This allows the partitioning of parameters and applying different
+updates to different parts.
 
 > The second argument can also be a function that, given the updates PyTree,
 returns such a PyTree mapping updates (or their prefix) to labels.
 
 This can be used for other cases like having different optimisers for different
-layers, but in our case we simply use `optax.adam` for our trainable parameters,
-and zero out gradients for other regions using the stateless transform
-`optax.set_to_zero`.
+layers (such as disabling weight decay for certain layers), but in our case we
+simply use `optax.adam` for our trainable parameters, and zero out gradients
+for other regions using the stateless transform `optax.set_to_zero`.
 
-> In jit-compiled function, the updates that have `optax.set_to_zero` applied to
-them won't be computed due the optimisation process seeing they will always be
-zero. Hence, we get the expected memory savings from only finetuning a subset of
-layers!
+> In jit-compiled function, the gradients that have `optax.set_to_zero` applied
+> to them won't be computed due to the optimisation process seeing that they
+> will always be zero. Hence, we get the expected memory savings from only
+> finetuning a subset of layers!
 
-Let's print the updates and see that we do indeed have no updates in the BERT
-backbone, and have updates in the classifier head:
+Let's print the updates so that we can see that we do indeed have no updates in
+the BERT backbone, and have updates in the classifier head:
 ```python
 updates['classifier'], updates['bert']['embeddings']['token_type_embeddings']
 ===
@@ -1169,7 +1177,7 @@ restoring arbitrary PyTrees. I won't go into great detail but will show basic
 usage here. There is nothing worse than spending hours training only to forget
 about actually saving progress!
 
-Here is basic usage saving the PyTree of BERT classifier parameters:
+Here is basic usage saving the BERT classifier parameters:
 ```python
 import orbax
 import orbax.checkpoint
@@ -1183,7 +1191,7 @@ orbax_checkpointer.save('classifier.ckpt', model.params['classifier'], save_args
 Out: classifier.ckpt
 ```
 
-Which we can restore by running:
+Which we can restore by executing:
 ```python
 orbax_checkpointer.restore('classifier.ckpt')
 ===
@@ -1201,10 +1209,12 @@ that can't be serialised (such as a Flax train state where `apply_fn` and `tx`
 can't be serialised) you can pass an example PyTree to `item` in the `restore`
 call, to let Orbax know the structure you want.
 
-Manually saving checkpoints like this is a bit old-fashioned though. Orbax has a
-bunch of automatic versioning and scheduling features built in, such as
-automatic deleting of old checkpoints, tracking the best metric, and more. To do
-so, wrap the `orbax_checkpointer` in `orbax.checkpoint.CheckpointManager`:
+Manually saving checkpoints like this is a bit old-fashioned. Orbax has a bunch
+of automatic versioning and scheduling features built in, such as automatic
+deleting of old checkpoints, tracking the best metric, and more. To use these
+features, wrap the `orbax_checkpointer` in
+`orbax.checkpoint.CheckpointManager`:
+
 ```python
 options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=4, create=True)
 checkpoint_manager = orbax.checkpoint.CheckpointManager(
@@ -1235,14 +1245,14 @@ drwxr-xr-x 2 root root 4096 Jun  3 09:07 default
 ```
 As we set `max_to_keep=4`, only the last four checkpoints have been kept.
 
-We can view which steps the manager has saved on:
+We can view which steps have checkpoints:
 ```python
 checkpoint_manager.all_steps()
 ===
 Out: [6, 7, 8, 9]
 ```
 
-As well as view if there has been a checkpoint for a specific step:
+As well as view if there is a checkpoint for a specific step:
 ```python
 checkpoint_manager.should_save(6)
 ===
@@ -1256,8 +1266,8 @@ checkpoint_manager.latest_step()
 Out: 9
 ```
 
-We can also restore using the checkpoint manager. Rather than provide a path, we
-provide a step:
+We can restore using the checkpoint manager. Rather than provide a path to the
+`restore` function, we provide the step we want to restore:
 ```python
 step = checkpoint_manager.latest_step()
 checkpoint_manager.restore(step)
@@ -1274,20 +1284,19 @@ Out: {'bias': array([0., 0.], dtype=float32),
 
 For especially large checkpoints, Orbax supports asynchronous checkpointing
 which moves checkpointing to a background thread. You can do this by wrapping
-`orbax.checkpoint.AsyncCheckpointer` around our earlier
-`orbax.checkpoint.PyTreeCheckpointer`.
+`orbax.checkpoint.AsyncCheckpointer` around the
+`orbax.checkpoint.PyTreeCheckpointer` we created earlier.
 
 > You may see mention online to Flax checkpointing utilities. However, these
 utilities are being deprecated and it is recommended to start using Orbax
 instead.
 
-The documentation for Orbax is a bit spartan but it has a fair few options to
-it. It is worth just reading the `CheckpointManagerOptions` class
+The documentation for Orbax is a bit spartan, but it has a fair few options to
+choose. It is worth just reading the `CheckpointManagerOptions` class
 [here](https://github.com/google/orbax/blob/main/checkpoint/orbax/checkpoint/checkpoint_manager.py#L85)
 and seeing the available features.
 
 ## Conclusion
-- Less ideological, more a practical guide to use JAX + Flax + Optax
 
 In this blog post, I've introduced two libraries built on top of JAX: Flax and
 Optax. This has been more of a practical guide into how you can implement
@@ -1296,29 +1305,29 @@ discussion like my previous blog post on JAX.
 
 To summarise this post:
 - Flax provides a neural network API that allows the developer to build neural
-  network modules in a class-based way. Unlike other frameworks these modules
-  do not contain state, essentially hollow shells that loosely associate functions
-  with parameters and inputs, and providing easy ways to initialise PyTrees of
-  parameters.
-- Optax provides a large suite of optimisers for updating our parameter
-  PyTrees. These, like Flax modules, do not contain state and must have state
-  passed manually to it. All optimisers are simply gradient transformations:
-  simply a pair of pure functions `init` and `update`. Optax also provides
-  other gradient transformations and wrappers to allow for more complex
-  behaviour, such as gradient clipping and parameter freezing.
+  network modules in a class-based way. Unlike other frameworks, these modules
+  do not contain state within them, essentially hollow shells that loosely
+  associate functions with parameters and inputs, and provide easy methods to
+  initialise the parameters.
+- Optax provides a large suite of optimisers for updating our parameters.
+  These, like Flax modules, do not contain state and must have state passed
+  manually to it. All optimisers are simply gradient transformations: a
+  pair of pure functions `init` and `update`. Optax also provides other
+  gradient transformations and wrappers to allow for more complex behaviour,
+  such as gradient clipping and parameter freezing.
 - Both libraries simply operate on and return PyTrees and can easily
   interoperate with base JAX - crucially with `jax.jit`. This also makes them
   interoperable with other libraries based on JAX. For example, by choosing
-  Flax, we aren't locked into using Optax too, and vice versa.
+  Flax, we aren't locked into using Optax, and vice versa.
 
 There is a lot more to these two libraries than described here, but I hope this
 is a good starting point and can enable you to create your own training loops
-in JAX. A good exercise would be using the training loop and model code in this
-blog post and adapting it for your own tasks, for example another generative
-model, or implementing a classification model.
+in JAX. A good exercise now would be to use the training loop and model code in
+this blog post and adapting it for your own tasks, such as another generative
+model.
 
 If you liked this post please consider following me on
-[Twitter](https://twitter.com/alexfmckinney) or use this RSS feed for
+[Twitter](https://twitter.com/alexfmckinney) or use this site's RSS feed for
 notifications on future ramblings about machine learning and other topics.
 Alternatively you can navigate to the root of this website and repeatedly
 refresh until something happens. Thank you for reading this far and I hope you
@@ -1335,3 +1344,5 @@ Some good extra resources:
 - [Equinox - another neural network library built on JAX by Patrick Kidger](https://github.com/patrick-kidger/equinox)
 - [Haiku - another neural network library built on JAX from Deepmind](https://github.com/deepmind/dm-haiku)
 - [Orbax source code](https://github.com/google/orbax)
+
+*Found something wrong with this blog post? Let me know via email or Twitter!*
