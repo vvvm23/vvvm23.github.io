@@ -4,37 +4,36 @@ date: 2023-05-22T21:54:11+01:00
 draft: true
 ---
 
-In an earlier blog post, I introduced JAX - a framework for high performance
-numerical computing / machine learning - in a somewhat atypical manner. I
-didn't actually create a single training loop, and only a couple patterns that
-looked vaguely machine learning-like. If you haven't read it already, I highly
-recommend reading it [here](https://afmck.in/posts/2023-05-22-jax-post/).
+In my previous blog post, I discussed JAX - a framework for high performance
+numerical computing and machine learning - in an atypical manner. **I didn't
+create a single training loop**, and only showed a couple patterns that looked
+vaguely machine learning-like. If you haven't read that blog post yet, you can
+read it [here](https://afmck.in/posts/2023-05-22-jax-post/).
 
-This was deliberate as I felt that JAX - although designed for machine learning
-research - is much more general-purpose than that. The steps for using it are
-to define what you want to happen, wrap it in a `jax.jit` call, let JAX trace
-out your function into some intermediate graph representation, and then pass to
-XLA to compile and optimise it. The result is a single, heavily-optimised,
-binary blob, ready and waiting for you to throw data at. This paradigm is a
-natural fit for a lot of machine learning applications, but also other
-scientific computing tasks. So I felt it didn't make sense to get too ML
-specific there. Also, it is ground that has been explored and taught a lot
-before - I wanted to do a different take on introductory JAX.
+This approach was deliberate as I felt that JAX - although designed for machine
+learning research - is more general-purpose than that. The steps to use it are
+to define what you want to happen, wrap it in within `jax.jit`, let JAX trace
+out your function into an intermediate graph representation, which is then
+passed to XLA where it will be compiled and optimised. The result is a single,
+heavily-optimised, binary blob, ready and waiting to receive your data. This
+approach is a natural fit for many machine learning applications, as well as
+other scientific computing tasks. Therefore, targeting machine learning only
+didn't make sense. It is also ground that has already been extensively covered 
+- I wanted to do a different take on introductory JAX.
 
-I also mentioned in the previous post that it *is* possible to develop a full
-machine learning training loop - models, optimisers and all - in pure JAX
-alone. This is self-evident as it is very general purpose. It can be a good
-exercise to do so, but not a strategy I like the employ. Therefore, in this
-blog post I want to introduce two higher level libraries built on top of JAX,
-that do a lot of the heavy lifting for us when writing our machine learning
-applications. These are **Flax** and **Optax**.
+In the previous post, I mentioned that it *is* possible to develop a full
+machine learning training loop - models, optimisers and all - in pure JAX. This
+is self-evident as JAX is general-purpose. It is a good exercise, but not a
+strategy I like to employ. In this blog post I want to introduce two higher
+level libraries built on top of JAX, that do a lot of the heavy lifting for us
+when writing machine learning applications. These libraries are **Flax** and **Optax**.
 
-To summarise the two libraries:
-- **JAX** - provides a high-level neural network API that lets the developer
+To summarise the libraries:
+- **JAX** - provides a **high-level neural network API** that lets the developer
   reason about the model in terms of components, like in PyTorch, rather than
   with JAX functions that take parameters as inputs.
-- **Optax** - a library containing an array of model training utilities, such
-  as optimisers, loss functions, learning rate schedulers, and more! Very
+- **Optax** - a library containing a vast array of model training utilities, such
+  as **optimisers, loss functions, learning rate schedulers**, and more! Very
   batteries-included.
 
 At the end of this post, we will have implemented and trained a very simple
@@ -69,35 +68,37 @@ def train_step(params, batch):
 for _ in range(epochs):
     for batch in dataset:
         params, loss = train_step(params, batch)
-        ...         # report metrics and the like
+        ...         # report metrics like loss, accuracy, and the like.
 ```
-We first define our model in a functional manner: simply being a function that
-takes in the model parameters and a batch, and returns the output of the model.
+We define our model in a functional manner: a function that takes the model
+parameters and a batch as input, and returns the output of the model.
 Similarly, we define the loss function that also takes the parameters and a
-batch, and returns the loss. Our final function is the actual train step itself
-which we wrap in a `jax.jit` call – giving XLA maximum context to work with.
-This first computes the gradient of the loss function using the function
-transform `jax.value_and_grad`, manipulates the returned gradients (perhaps
-scaling by a learning rate), and updates the parameters. We return the new
-parameters, and use them on the next call to `train_step`. This can be called in
-a loop, fetching new data from the dataset each time.
+batch as input, but returns the loss instead.
 
-Most (but not all) machine learning programs follow a pattern such as the one
-above. In other frameworks such as PyTorch though, typically we can package
-together the model forward pass and the management of the parameters into a
-stateful class representing our model – simplifying the training loop. It would
-be nice if we could imitate this behaviour in stateless JAX to allow the
-developer to reason about models in a class-based way. This is what Flax's 
-neural network API – `flax.linen` – aims to achieve.
+Our final function is the train step itself which we wrap in `jax.jit` – giving
+XLA maximum context to compile and optimise the training step. This first
+computes the gradient of the loss function using the function transform
+`jax.value_and_grad`, manipulates the returned gradients (perhaps scaling by a
+learning rate), and updates the parameters. We return the new parameters, and
+use them on the next call to `train_step`. This is called in a loop, fetching
+new batches from the dataset before each training step.
+
+Most machine learning programs follow a pattern such as the one above. But in
+frameworks like PyTorch, we package together the model forward pass and the
+management of model parameters into a stateful object representing our model –
+simplifying the training loop. It would be nice if we could imitate this
+behaviour in stateless JAX to allow the developer to reason about models in a
+class-based way. This is what Flax's neural network API – `flax.linen` – aims
+to achieve.
 
 > Whether or not writing models in a purely stateless, functional way is better
-than a stateful, class-based way, is not the topic of this blog post. In my
-opinion both have merits. Regardless, during execution the result is the same
-whether we use Flax or not: a stateless, heavily-optimised, binary blob that we
-throw data at. It's all JAX after all.
+than a stateful, class-based way, is not the topic of this blog post. Both have
+merits. **Regardless, during execution the final result is the same whether we
+use Flax or not. We get a stateless, heavily-optimised, binary blob that we
+throw data at.** It's all JAX after all.
 
-There are two main ways to define a module in Flax: one is more PyTorch like and
-the other is a more compact representation:
+There are two main ways to define a module in Flax: one is PyTorch-like and
+the other is a compact representation:
 ```python
 import flax.linen as nn
 from typing import Callable
@@ -122,27 +123,26 @@ class ModelCompact(nn.Module):
         return self.activation_fn(x)     
 ```
 
-Both approaches can be useful. If we have some complex initialisation logic, the
-former may be more appropriate. If the module is relatively simple, we can make
-use of the `nn.compact` representation to automatically define the module by the
-forward pass alone.
+If we have complex initialisation logic, the former may be more appropriate. If
+the module is relatively simple, we can make use of the `nn.compact`
+representation to automatically define the module by the forward pass alone.
 
-Like in other frameworks, we can nest modules within each other to implement
+Like other frameworks, we can nest modules within each other to implement
 complex model behaviour. Like we've already seen, `flax.linen` provides some
 pre-baked modules like `nn.Dense` (same as PyTorch's `nn.Linear`). I won't
 enumerate them all, but the usual candidates are all there like convolutions,
 embeddings, and more.
 
 > Something to bear in mind if you are porting models from PyTorch to Flax is
-that the default weight initialisation can be different. For example, in PyTorch
-the default bias initialisation is LeCun normal, but in Flax it is simply
+that the default weight initialisation may be different. For example, in
+PyTorch the default bias initialisation is the LeCun normal, but in Flax it is
 initialised to zero.
 
-However, as is, we cannot call this model, even if we were to initialise the
-class itself. There simply aren't any parameters yet to use, and our module is
-never a container for parameters (otherwise it would be stateful!). **An
-instance of Flax module is simply a hollow shell, that loosely associates
-operations with parameters and inputs** that can be passed in later.
+However, currently we cannot call this model, even if we were to initialise the
+class itself. There simply aren't any parameters to use. Furthermore, the
+module is never a container for parameters. **An instance of a Flax module is
+simply a hollow shell, that loosely associates operations with parameters and
+inputs** that are passed as input later.
 
 To see what I mean, let's initialise some parameters for our model:
 ```python
@@ -170,11 +170,12 @@ FrozenDict({
     },
 })
 ```
+
 In the above cell, we first initialised our model class, which returns an
-instance of `Model` which we assign to the variable `model`. Like we said, this
-does not actually contain any parameters, it is just a hollow shell that we can
-pass parameters and inputs to, in order to execute our model. We can see this by
-printing the `model` variable itself:
+instance of `Model` which we assign to the variable `model`. Like I said, it
+does not contain any parameters, it is just a hollow shell that we pass
+parameters and inputs to. We can see this by printing the `model` variable
+itself:
 
 ```python
 model
@@ -186,7 +187,8 @@ Out: Model(
 )
 ```
 
-We can also try calling the model itself, which will fail even though we have seemingly defined the `__call__` method:
+We can also call the module itself, which will fail even though we have defined
+the `__call__` method:
 ```python
 model(jnp.zeros((1, 8)))
 ===
@@ -201,23 +203,23 @@ Out:
 AttributeError: "Model" object has no attribute "layer". If "layer" is defined in '.setup()', remember these fields are only accessible from inside 'init' or 'apply'.
 ```
 
-To actually initialise the parameters themselves, we pass a random key (see
-previous post on JAX psuedo-randomness) and some dummy inputs to the model's
-`init` function of the same shape and types as the real inputs we will use
-later. In this simple case, this is simply the `x` argument in the original
-module definition, but could be multiple arrays or other objects like keys. We
-need these input shapes in order to determine the shape of the parameters.
+To initialise the parameters, we passed a PRNG key and some dummy inputs to the
+model's `init` function of the same shape and dtype as the inputs we will use
+later. In this simple case, we just pass `x` as in the original module's
+`__call__` definition, but could be multiple arrays, PyTrees, or PRNG keys. We
+need the input shapes and dtypes in order to determine the shape and dtype of
+the model parameters.
 
-From the `model.init` call, we get a nested `FrozenDict` holding our model
-parameters. If you are familiar with PyTorch state dictionaries, the format of
-the parameters is very similar: nested dictionaries with meaningful named keys,
-with parameter arrays as values. If you've read my previous blog post or read
-about JAX before, you will also know that this structure is a PyTree. Not only
-does Flax help developers loosely associate parameters and operations, it also
-helps generating said parameters based on our model definition.
+From the `model.init` call, we get a nested `FrozenDict` holding our model's
+parameters. If you have seen PyTorch state dictionaries, the format of the
+parameters is similar: nested dictionaries with meaningful named keys, with
+parameter arrays as values. If you've read my previous blog post or read about
+JAX before, you will know that this structure is a PyTree. Not only does Flax
+help developers loosely associate parameters and operations, **it also helps
+initialise model parameters based on the model definition**.
 
-Once we have these parameters, we can call the model using `model.apply` –
-providing the parameters and inputs:
+With the parameters, we can call the model using `model.apply` – providing the
+parameters and inputs:
 ```python
 key, x_key = jax.random.split(key)
 x = jax.random.normal(x_key, (1, 8))
@@ -227,11 +229,11 @@ y
 Out: Array([[0.9296505 , 0.25998798, 0.01101626, 0.        ]], dtype=float32)
 ```
 
-There is absolutely nothing special about the PyTree returned by `model.init` –
-it is just a regular PyTree storing the model's parameters. `params` can be swapped
-out with any other PyTree that contains the parameters `model` expects:
+There is nothing special about the PyTree returned by `model.init` – it is just
+a regular PyTree storing the model's parameters. `params` can be swapped with
+any other PyTree that contains the parameters `model` expects:
 ```python
-zero_params = jax.tree_map(lambda x: jnp.zeros(x.shape), params)
+zero_params = jax.tree_map(jnp.zeros_like, params) # generates a PyTree with same structure as `params` will all values set to 0.
 print(zero_params)
 model.apply(zero_params, x)
 ===
@@ -255,39 +257,43 @@ FrozenDict({
 Array([[0., 0., 0., 0.]], dtype=float32)
 ```
 
-Forcing model calls to need the passing of parameters keeps it stateless, and
-returning parameters like any other PyTree makes Flax interoperable with JAX
-functions – as well as other libraries built on JAX. Essentially, by using Flax
-we aren't forced to use other specific frameworks.
+Forcing model calls to require explicitly passing parameters keeps it
+stateless and returning parameters like any other PyTree, makes Flax
+interoperable with JAX functions – as well as other libraries built on JAX.
+**Essentially, by using Flax we aren't forced to use any other specific
+frameworks and have access to all regular JAX features.**
 
 If you are used to frameworks like PyTorch, calling models like this feels
 unnatural at first. However, I personally quite like it this way – it feels
-quite elegant to just pass different parameters to the model to get different
-behaviour rather than "load" the weights. A bit subjective and fuzzy, but I like
-it. To summarise the difference, if we want to implement $f_\theta(x)$, a
-PyTorch module is basically $f_\theta$ (which we can call on $x$). A Flax
-module is simply $f$, which needs to be provided parameters $\theta$ before it
-can be called on $x$ – or alternatively, we call $f$ on $(\theta, x)$.
+rather elegant to pass different parameters to the model to get different
+behaviour rather than "load" the weights. A bit subjective and fuzzy, I know,
+but I like it.
+
+> To summarise the difference, if we aim to implement $f_\theta(x)$, a PyTorch
+module is basically $f_\theta$ (which we can call on $x$). A Flax module is
+simply $f$, which needs to be provided parameters $\theta$ before it can be
+called on $x$ – or alternatively, we call $f$ on $(\theta, x)$.
 
 All in all, the point of Flax is to **provide a familiar stateful API for
 development** whilst **preserving JAX statelessness during runtime**. We can
-build our neural network modules in terms of classes and objects, but the final
-result is a stateless function `model.apply` that takes in parameters and
-inputs, and a PyTree of parameters. 
+build our neural network modules in terms of classes and objects, but **the
+final result is a stateless function `model.apply` that takes in our inputs and
+a PyTree of parameters.**
 
 This is identical behaviour to what we began with (recall our `model_forward`
-function at the start of this section), just tied up nicely in a bow! Hence, our
-function containing `model.apply` that takes as input our PyTree, can be safely
-jit-compiled. The result is the same, a heavily-optimised binary blob we bombard
-with data. Nothing changes during runtime, it just makes development easier for
-those who prefer reasoning about neural networks in a class-based way whilst
-remaining interoperable with, and keeping the performance of JAX.
+function at the start of this section), just now tied up nicely together.
+Therefore, our function containing `model.apply` that takes as input our
+PyTree, can be safely jit-compiled. The result is the same, a heavily-optimised
+binary blob we bombard with data. Nothing changes during runtime, it just makes
+development easier for those who prefer reasoning about neural networks in a
+class-based way whilst remaining interoperable with, and keeping the
+performance of JAX.
 
-There's a lot more to Flax than this, especially outside the `flax.linen` neural
-network API. However, for now, I will move on to a full training loop example
-using Flax and **Optax**. I will swing back around to some extra Flax points
-later, but I feel some concepts are hard to explain without first showing a
-training loop. Without further ado..
+There's a lot more to Flax than this, especially outside the `flax.linen`
+neural network API. For now though, we will move on to developing a full
+training loop using Flax and **Optax**. We will swing back around to some extra
+Flax points later, but I feel some concepts are hard to explain without first
+showing a training loop.
 
 ## A full training loop with Optax and Flax
 
@@ -841,20 +847,6 @@ model is capable of using the class conditioning signal so that we can control
 which digits are generated. Therefore, we have succeded in building a full Flax+Optax training loop!
 
 ## Extra Flax and Optax Tidbits
-- Flax Train State X
-    - Could just use a namedtuple, but Flax has a nice inbuilt one. X
-- There is a way to bind parameters to a model, and yield an interactive model like $f_\Theta$. However, can't train with this, it is a static model. X
-- regularisation layers like dropout X
-- composing layers like Sequential X
-- Learning Rate schedulers X
-    - Linear, w/ warmup X
-- Grad clipping and chaining X
-- EMA X
-- Finetuning specific parameters
-- Orbax?
-    - Just mention? Or show basic use-case?
-- gradient accumulation? optax.MultiSteps X
-- refer to other losses and optimisers (link to API reference)
 
 I'd like to finish this blog post by highlighting some interesting and useful
 features that may prove useful in your own training loops. I won't delve into
