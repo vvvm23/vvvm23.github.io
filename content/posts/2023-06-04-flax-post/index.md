@@ -1,7 +1,7 @@
 ---
 title: "Easy JAX training loops with Flax and Optax"
-date: 2023-05-22T21:54:11+01:00
-draft: true
+date: 2023-06-04T21:54:11+01:00
+draft: false
 ---
 
 In my previous blog post, I discussed JAX - a framework for high performance
