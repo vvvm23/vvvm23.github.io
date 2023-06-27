@@ -1,10 +1,8 @@
 ---
-title: "Sentence Mining in the terminal"
+title: "Sentence Mining in the Terminal"
 date: 2023-06-26T13:00:39+01:00
 draft: true
 ---
-
-> An exercise in writing a somewhat short blog
 
 Online, I tend to market myself as an AI / computery guy, mostly creating and following content related to these areas. However, I have a bunch of other interests and passions I like to tinker with – probably too many to actually dedicate lots of time to all of them. However, one of them I have been consistent with for a long while now is language learning, specifically learning Chinese.
 
@@ -88,19 +86,36 @@ The current iteration instead uses [whisper.cpp](https://github.com/sanchit-gand
 
 The cherry on top is installing a command line version of Google Translate `trans`. It is good for quickly checking the meaning of words by just switching terminal, rather than using my phone dictionary. Google Translate is still a bit unreliable for long sentences, but not bad for single words. If anyone knows of a decent command line English-Chinese dictionary please let me know.
 
-- Limitations and next steps
-    - Doesn't integrate with Netflix, where there is a lot of content. Use 🏴‍☠️to resolve.
-    - For some reason certain videos just don't work well with whisper. This random cooking channel is just whisper-proof.
-    - I can't really stream it as is (think, hour long video) but it isn't really an issue. Just start it running and begin watching when the first CSV is generated.
-    - Not always accurate, especially with certain accents. Not really a big deal as I am advanced enough to read the sentence and make corrections, but it does slow things down as I can't 100% trust whisper.
-        - However, whisper imo is one of the more robust AI systems out there. I cannot trust ChatGPT to give me accurate answers, but Whisper is correct 99% of the time.
-    - God, mobile app would be amazing. But I know zero about front end and mobile dev.
+## Limitations
 
-    - I don't automate definitions as often there is a lot of nuance and context to pick the correct definition.
-    - Currently the code in this setup is super super messy, it is super fragile and really needs a refactor. Next steps is to smooth it all out.
+What I have now is far far better than how I started, but it still isn't perfect. Here are the remaining limitations:
+- Currently targets Youtube exclusively but could easily be extended to local videos. However, I can't deal with DRM-enabled content like Netflix. The solution is 🏴‍️ 🤷
+- For some reason some audio _just doesn't work_ with Whisper. For example [Xiaoying Cuisine](https://www.youtube.com/@XiaoYingFood), a Youtube channel, has a ton of videos that Whisper just fails to parse successfully, mostly just failing to print the majority of the sentences. This happened with all implementations I tried, so it is something with the model itself.
+- I can't stream in longer videos yet. I'm sure this is possible, but also not a big deal as I can set the script running and do something else until it is done. I could also chunk up the video and only transcribe each chunk at a time.
+- It isn't 100% accurate at predicting words, especially with certain accents. I wouldn't recommend this method unless you are advanced enough to recognise errors. This does slow things down a bit as I can't 100% trust Whisper, but I would say Whisper is most of the time. It is certainly worth using it over manually transcribing.
+- No way to do it on mobile yet. This would be really cool but I know nothing about front-end and mobile development.
 
-- Conclusion
-    - I probably went totally overkill with this, but it is a fact I am lazy so I need to proactively reduce friction in order to do things. Somewhat contradictory, I know.
-    - Still, it is far smoother than what I originally did, and I hope it can help improve my consistency. Time will tell, and this blog post does kinda serve as a dedication that I will commit to doing this more often.
-    - In general with computers, I feel it is worth the time to minimise work required wherever possible. That is why I am so into using Linux, but that is for another post. This is just one example of this. Perhaps I fail to remain consistent, but I sure as hell couldn't doing all this work manually. Maybe others can, but I know I cannot.
-    - Similarily, I could talk at length about language learning. I have a draft on this but it got crazily long and I lost motivation. Some day though.
+The next step is to refactor what I have into something more robust, now that I have a concept I like. The current solution is an awful amalgamation of Python, binaries, and bash scripts. I could also add automatic definition generation, however I think it is best not to. Chinese is a highly contextual language, so often the meaning of word highly depends on the context it appears in. This is on top of the general nuance and ambiguity that exists in languages in general.
+
+## Conclusion
+
+I went a bit overkill with this, but it is a fact I am quite lazy, so I know I need to proactively reduce friction in order to actually do things. This is somewhat contradictory, but it is what it is.
+
+The solution is not perfect, but it is far smoother than my original method, and after trying it out for the past week, it is definitely helping with my consistency. Not only is there less friction, it also feels good to use a tool you yourself made. In addition, writing about this and my goals publicly provides some soft peer pressure which should also help remain consistent. We'll see how that actually goes with time, perhaps by setting an ambitious goal.
+
+In general with computers, I feel it is nearly always worth the time to optimise your workflow in order to minimise the work required wherever possible. That is why I am so into using Linux for personal computing, but that is for another blog post entirely. This is just one example of this ideology.
+
+I could also talk at length about language learning, but that is for another blog post. I actually have a draft on this topic that I wrote before going to Taiwan, however it was so long that I ran out of time before leaving, thus making a lot of the content of the language totally out of date. Some day though.
+
+I had a few goals when writing this blog post. One, to show a cool use of AI for language learning. Two, to hopefully inspire people to identify and reduce friction in their own workflows. Finally, to practice writing short(er) form content.
+
+If you liked this post please consider following me on [Twitter](https://twitter.com/alexfmckinney) or use this site's RSS feed for notifications on future ramblings. Alternatively you can navigate to the root of this website and repeatedly refresh until something happens. Thank you for reading this far and I hope you found it useful!
+
+---
+
+### Acknowledgements and Extra Resources
+
+I draw heavy inspiration from [Livakivi's Youtube Channel](https://www.youtube.com/@Livakivi). I would really recommend checking it out, even if you aren't interested in language learning. They cover a lot of other topics like home renovation, drawing, technology, and just generally learning things. The full series of language learning can be found [here](https://www.youtube.com/playlist?list=PLYLTtm-WITnklOP-i4NClO1qA2qTkLC7z).
+
+*Found something wrong with this blog post? Let me know via email or Twitter!*
+
