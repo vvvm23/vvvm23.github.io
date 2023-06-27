@@ -1351,7 +1351,7 @@ Some alternatives to Flax:
 - [Equinox by Patrick Kidger](https://github.com/patrick-kidger/equinox)
 - [Haiku from Deepmind](https://github.com/deepmind/dm-haiku)
 
-> I am not aware of relatively mature alternatives to Flax. If you know of
+> I am not aware of relatively mature alternatives to Optax. If you know of
 > some, please let me know!
 
 *Found something wrong with this blog post? Let me know via email or Twitter!*
