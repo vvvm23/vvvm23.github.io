@@ -1,50 +1,50 @@
 ---
 title: "Sentence Mining in with OpenAI's Whisper"
-date: 2023-06-26T13:00:39+01:00
-draft: true
+date: 2023-06-30T13:20:39+01:00
+draft: false
 ---
 
-Online, I tend to market myself as an AI / computery guy, creating and following content related to these areas. However, I have other interests and passions to tinker with – unfortunately too many to actually dedicate lots of time to all of them with the exception of one. The One is language learning, specifically learning Chinese, which I am generally consistent with.
+Online, I tend to market myself as an AI / computery guy, creating and following content related to these areas. However, I have other interests and passions to tinker with – unfortunately too many to actually dedicate lots of time to all of them, with the exception of one. The One is language learning, specifically learning Chinese, which I have been generally consistent with.
 
-It has been a long road, starting in late 2018 but with large gaps and misguided routes taken along the way. Ultimately, in the past couple years I've been very consistent with vocabulary and reading practice. I've cracked the formula for learning in this regard, at least for me. By no means am I an expert, but on my trip to Taiwan I managed fine in the reading department – better than expected. Progressing here now is a matter of time rather than trying to hack my brain.
+It has been a long road, starting in late 2018 but with large gaps and misguided routes taken along the way. Ultimately, in the past couple years I've been very consistent with vocabulary and reading practice. I've cracked the formula for learning in this regard, at least for me. By no means am I an expert, but on my recent trip to Taiwan I managed well with reading – better than expected. Progressing further is a matter of time rather than trying to hack my brain.
 
 ![Rice field in Taiwan](taiwan.jpg)
 > Random rice field in Taiwan.
 
-However, with listening I was much worse than expected. There were a handful of times I could fully understand what had been said. Most of the time I got the jist (smiling or laughing at opportune times) but not quick enough to timely reply. Contrary to popular belief, reading is a lot easier than listening.
+With listening, however, I was worse than expected. There were a few of times I could fully understand a conversation. Most of the time I got the jist (smiling or laughing at tactical times) but not quick enough for a timely reply. Contrary to popular belief, reading Chinese is easier than listening.
 
-Of course, this is also simply a function of time and effort put into listening practice. I have spent over a hundred times more time reading than listening, so naturally I am worse. Time spent on a skill over a long period of time mostly depends on how consistent you are at practising said skill. How consistent I am comes down to how frictionless it is to get started practising the skill.
+Of course, this is simply a function of time and effort put into practising listening. I have put in over a hundred times more work reading than listening, so naturally I am worse. Time spent on a skill over a long period of time mostly depends on how consistent you are at practising said skill. How consistent I am comes down to how frictionless it is to get started practising the skill.
 
 ![Statistics from the Vocabulary Deck](image.png)
-> Some Statistics from a pre-made deck I use to learn new vocabulary passively.
+> Some statistics from a pre-made deck I use to learn new vocabulary passively. 
 
-![Example Vocabulary Card](Example vocabulary card form the pre-made deck.)
-> An example vocabulary card from a pre-made deck, which I use to acquire new vocabulary passively.
+![Example vocabulary card form the pre-made deck.](image-1.png)
+> An example vocabulary card from a pre-made deck, which I use to acquire new vocabulary passively. I am just over 60% of the way to completing this deck.
 
-For reading, I use apps such as Anki and get little bits of practice in spare minutes here or there. It is easy to do this every day. Moreover, I have built a sufficient vocabulary base where I can read interesting content for fun, which also helps to stay consistent. Bar a handful of days, I have done cuecards every day for the past year. Listening, however, is more labor intensive to get started. To get better, I need to find a method that makes it easy for lazy-ol' me to be consistent with it.
+For reading, I use apps such as Anki and get bits of practice in spare minutes here or there. It is easy to do this every day: usually while waiting in a queue, elevator, or public transport – times like these. Moreover, I have built a sufficient vocabulary base where I can read interesting content for fun, which also helps to stay consistent. Bar a handful of days, I have done Anki cuecards every day for the past year. Listening, however, is more labor intensive to get started. To improve, I need a method that makes it easy for lazy-ol' me to be consistent.
 
 ## Ways of practising listening
 
-Since beginning this journey nearly five years ago, I've explored and discarded a bunch of methods for both reading and listening. A big part of language learning is finding a method that works well for you. Perhaps a bit of a cope, but when you see on Youtube "I learnt X fluently in Y weeks", the same method may or may not work for you. Your goals may be different: levels of fluency, whether you care about writing and reading, or just speaking and listening, types of content, and so on. It is highly personal and takes much trial and error.
+In my time, I've explored many methods for reading and listening. A key part of language learning is finding a method that works well for you. Perhaps a bit of a cope, but when you see on Youtube "I learnt X fluently in Y weeks", the same method may or may not work for you. Your goals may also be different: levels of fluency, whether you care about writing and reading, or just speaking and listening, types of content, and so on. It is highly personal and takes much trial and error.
 
 I'm happy to say for reading and vocabulary acquisition, I've found my method. For listening, I am still exploring. Some methods that I have and have not tried include:
 - **Textbooks with audio** – These are good when getting started, but are not realistic examples and the content is often not very engaging.
-- **Podcasts** – Good but the interesting content is too high level whilst the lower level stuff is less interesting, which equates to being harder to do every day.
-- **Immersion** – This requires a higher level to do consistently, but would result in amazing gains able. 
+- **Podcasts** – Good but the interesting content is too high-level whilst the simpler podcasts are less interesting, which equates to being harder to do every day.
+- **Immersion** – This requires a higher level to do consistently, but would result in amazing gains once able. 
 - **Shadowing** – Listening to sentences and repeating them back to train ear and tongue in tandem. Very repetitive and boring.
-- **Courses** – Courses like Pimsleur. Probably effective, but expensive and can't tailor the content to stuff I care about, making it boring.
-- **Get a tutor** – This is great and relatively inexpensive. However, I wouldn't be able to do this every single day. Do in tandem with other methods.
-- **Literally talk to strangers** – There are lots of Youtube polyglots who do a fair bit of this. To be honest the prospect terrifies me, but respect to them. The classic example is Laoshu (Mouse) but there is a recent trend for people like Ryan Hales to practice on apps like Omegle and OmeTv. This also requires a bit of bravery.
-- **Sentence Mining** – Watching content with native subtitles and finding "$n+i$" sentences (sentences where you understand all but $i$ words – typically $i=1$), creating cuecards from them with audio. These are later reviewed using spaced repetition systems.
+- **Courses** – Courses like Pimsleur. Effective but expensive, and cannot tailor the content to stuff I care about.
+- **Tutoring** – Great and relatively inexpensive with online services. However, I wouldn't be able to do this every single day. Do in tandem with other methods.
+- **Literally talking to strangers** – There are lots of Youtube polyglots who do a fair bit of this. To be honest the prospect terrifies me, but respect to them. The OG is Laoshu but there is a recent comeback with people like Ryan Hales to practice on apps like Omegle and OmeTv.
+- **Sentence Mining** – Watching content with native subtitles and finding "$n+i$" sentences. These are sentences where you understand all but $i$ words (typically $i=1$) and then creating cuecards from them with audio. These are later reviewed using spaced repetition systems.
 
-Sentence mining is my current method. As it uses subtitles, you can use any reading capabilities to support listening. Furthermore, you can tailor it exactly to your interests by picking content you like. For example, before going to Taiwan I watched videos by Taiwanese Youtubers. Now as I am about to move in with my girlfriend, I am watching cooking channels so I can learn the terminology so we can cook together in her language. Out of all the methods I have tried this is the method I enjoy the most. I think it _could_ become my end-game method.
+Sentence mining is my current method. As it uses subtitles, you can use any reading capabilities to support listening. Furthermore, you can tailor it exactly to your interests by picking content you enjoy. For example, before going to Taiwan I watched videos by Taiwanese Youtubers to learn more about some interesting locations. Now, as I am about to move in with my girlfriend, I am watching cooking channels to learn cooking terminology, so we can cook together in her language. Out of all the methods I have tried, this is the method I like the most.
 
 ![My first card made manually through sentence mining. From "Mom! Don't do that!"](image-2.png)
-> The first ard I made through sentence mining, which I created manually. From the show "Mom! Don't do that!"
+> The first card I made through sentence mining, created manually. From the Taiwanese drama "Mom! Don't do that!"
 
-I gave sentence mining a shot half a year ago after seeing amazing progress using sentence mining for learning Japanese by my favourite Youtube channel [Livakivi](https://www.youtube.com/c/livakivi). He has been documenting his process of learning Japanese **every day** for over four years, creating 20 new cuecards every day using sentence mining, recently reaching 20,000 cards total. The results are amazing, especially his fluency when speaking despite only practising speaking for a total of a few hours over four years.
+I gave sentence mining a try half a year ago after seeing amazing progress using it for learning Japanese by my favourite Youtube channel [Livakivi](https://www.youtube.com/c/livakivi). He has been documenting his process of learning Japanese **every day** for over four years, creating 20 new cuecards every day using sentence mining, recently reaching 20,000 cards total. The results are fantastic, especially his fluency when speaking despite only practising speaking for a total of a few hours over four years.
 
-> This is the reason I tend not to practice speaking, except random phrases for fun. It seems that speaking skills can follow directly from strong listening abilities.
+> This why I don't focus on speaking, except random phrases for fun. It seems that building strong listening skills first helps to support speaking later.
 
 Despite sentence mining being a promising approach, it is also very labor-intensive. For each sentence you want to mine, you need to:
 - Write the full sentence in Anki.
