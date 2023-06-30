@@ -1,5 +1,5 @@
 ---
-title: "Sentence Mining in the Terminal"
+title: "Sentence Mining in with OpenAI's Whisper"
 date: 2023-06-26T13:00:39+01:00
 draft: true
 ---
@@ -8,9 +8,18 @@ Online, I tend to market myself as an AI / computery guy, creating and following
 
 It has been a long road, starting in late 2018 but with large gaps and misguided routes taken along the way. Ultimately, in the past couple years I've been very consistent with vocabulary and reading practice. I've cracked the formula for learning in this regard, at least for me. By no means am I an expert, but on my trip to Taiwan I managed fine in the reading department – better than expected. Progressing here now is a matter of time rather than trying to hack my brain.
 
+![Rice field in Taiwan](taiwan.jpg)
+> Random rice field in Taiwan.
+
 However, with listening I was much worse than expected. There were a handful of times I could fully understand what had been said. Most of the time I got the jist (smiling or laughing at opportune times) but not quick enough to timely reply. Contrary to popular belief, reading is a lot easier than listening.
 
 Of course, this is also simply a function of time and effort put into listening practice. I have spent over a hundred times more time reading than listening, so naturally I am worse. Time spent on a skill over a long period of time mostly depends on how consistent you are at practising said skill. How consistent I am comes down to how frictionless it is to get started practising the skill.
+
+![Statistics from the Vocabulary Deck](image.png)
+> Some Statistics from a pre-made deck I use to learn new vocabulary passively.
+
+![Example Vocabulary Card](Example vocabulary card form the pre-made deck.)
+> An example vocabulary card from a pre-made deck, which I use to acquire new vocabulary passively.
 
 For reading, I use apps such as Anki and get little bits of practice in spare minutes here or there. It is easy to do this every day. Moreover, I have built a sufficient vocabulary base where I can read interesting content for fun, which also helps to stay consistent. Bar a handful of days, I have done cuecards every day for the past year. Listening, however, is more labor intensive to get started. To get better, I need to find a method that makes it easy for lazy-ol' me to be consistent with it.
 
@@ -30,6 +39,9 @@ I'm happy to say for reading and vocabulary acquisition, I've found my method. F
 
 Sentence mining is my current method. As it uses subtitles, you can use any reading capabilities to support listening. Furthermore, you can tailor it exactly to your interests by picking content you like. For example, before going to Taiwan I watched videos by Taiwanese Youtubers. Now as I am about to move in with my girlfriend, I am watching cooking channels so I can learn the terminology so we can cook together in her language. Out of all the methods I have tried this is the method I enjoy the most. I think it _could_ become my end-game method.
 
+![My first card made manually through sentence mining. From "Mom! Don't do that!"](image-2.png)
+> The first ard I made through sentence mining, which I created manually. From the show "Mom! Don't do that!"
+
 I gave sentence mining a shot half a year ago after seeing amazing progress using sentence mining for learning Japanese by my favourite Youtube channel [Livakivi](https://www.youtube.com/c/livakivi). He has been documenting his process of learning Japanese **every day** for over four years, creating 20 new cuecards every day using sentence mining, recently reaching 20,000 cards total. The results are amazing, especially his fluency when speaking despite only practising speaking for a total of a few hours over four years.
 
 > This is the reason I tend not to practice speaking, except random phrases for fun. It seems that speaking skills can follow directly from strong listening abilities.
@@ -42,9 +54,13 @@ Despite sentence mining being a promising approach, it is also very labor-intens
 - Record the sentence audio using audio capture tools.
 - Optionally, take a screenshot of the content.
 
+![To manually create cards, you would need to fill in this data manually in an interface like this.](image-3.png)
+
 > Storing the readings is important in Chinese as the characters don't always give hints on how they are pronounced. It is also a tonal language, so I need to pay attention to tones in the words.
 
 This is a lot. Without using tools you can easily spend more time creating cards than watching and concentrating on the content and the language. Livakivi, in his videos, uses [Migaku](https://www.migaku.io/) to automate some of the process. Before that, he used an array of tools to make mining somewhat easier, but states that without Migaku he would have likely burnt out long before reaching 20,000 cards.
+
+![Livakivi's Playlist on learning Japanese](image-4.png)
 
 > See [his video](https://youtu.be/QBcQJESGQvc) for more details on his process for sentence mining Japanese content. There are lots of parallels between learning Japanese and learning Chinese, so could learn a lot from his content despite targeting different languages.
 
@@ -69,6 +85,9 @@ The first iteration was basic. I began creating a script that takes a CSV file w
 - Definitions for each of the target words.
 - Floating point values for the start and end times of the sentence in the content.
 
+![Example CSV File](image-5.png)
+> Example CSV file. The first line is the target Youtube video URL, and all others are extracted sentences.
+
 This script then generates readings all the target words using the Python library `pinyin`. Then, it uses `youtube-dl` to download the video and uses `ffmpeg` to extract audio and screenshots from the target regions. These are then formatted as another CSV file that is importable into Anki.
 
 Although basic, this is easier than using screen capture tools to manually create audio recordings and screenshots. I am still, however, bottlenecked by copying or writing the sentences, and extracting precise, sub-second timestamps.
@@ -84,6 +103,9 @@ There remain some issues with this approach. For one, I found the timestamps wer
 ### Iteration 3 – Whisper but slower
 
 The current iteration instead uses [whisper.cpp](https://github.com/sanchit-gandhi/whisper-jax) – a zero dependency, optimised for CPU Whisper implementation, with limited CUDA support to boot. This makes it more useable on laptop at the cost of slower desktop performance. In practice this doesn't matter as I can simply do something else as the script runs. Furthermore, I've found the timestamps and transcriptions to be more accurate than the JAX implementation so far.
+
+![Example whisper.cpp output with timestamps](image-7.png)
+> Example transcript from `whisper.cpp` with timestamps on a short excerpt from JFK's famous speech.
 
 The cherry on top was installing a command line version of Google Translate `trans`. It is great for quickly checking the meaning of words by switching terminal focus, rather than using my phone dictionary. Google Translate is unreliable for long or nuanced sentences, but not bad for single words. If you, dear reader, know of a command line English-Chinese dictionary please let me know.
 
@@ -107,6 +129,8 @@ After using it for the past week, it is definitely helping with my consistency. 
 In general with computers, I feel it is nearly always worth the time to optimise your workflow in order to minimise the work required wherever possible. That is why I am so into using Linux for personal computing, but that is for another blog post entirely. This is just one example of this ideology.
 
 Language learning itself is a topic I could talk at length about, but that is for another blog post. I actually have a draft on this that I wrote before going to Taiwan, however it was so long that I couldn't finish in time before leaving. This made a lot of the content totally out of date and hence is confined to a dead branch. Some day though.
+
+<!-- TODO: random handwriting stuff -->
 
 I had a few goals when writing this blog post. One, to show a cool use of AI for language learning. Two, to hopefully inspire people to identify and reduce friction in their own workflows. Finally, to practice writing short(er) form content.
 
