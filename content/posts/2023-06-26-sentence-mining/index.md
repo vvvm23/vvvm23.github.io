@@ -1,6 +1,6 @@
 ---
 title: "Sentence Mining in with OpenAI's Whisper"
-date: 2023-07-04T13:07:39+01:00
+date: 2023-07-04T07:07:39+01:00
 draft: false
 ---
 
