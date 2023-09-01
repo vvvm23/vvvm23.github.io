@@ -37,13 +37,16 @@ This isn't a blog post to rant, complain, or generally be negative about the
 whole experience though. So if you are thinking, "this guy is a bit dreary, time
 to go", don't turn away just yet.
 
-In fact, I feel it was quite positive and taught me a lot – just not much about
-Flax ironically enough. The maintainers at Huggingface are also very helpful and
-do God's work encouraging and nurturing budding open-source enthusiasts. It is
-vitally important to keep this open spirit in the machine learning community,
-lest we become much more closed off like some other scientific fields.
+### Positively Speaking
 
-So, let me spin these four reasons more positively:
+In fact, I feel the experience was quite positive and taught me a lot – just not
+much about Flax ironically enough. The maintainers at Huggingface are also very
+helpful and do God's work encouraging and nurturing budding open-source
+enthusiasts. It is vitally important to keep this open spirit in the machine
+learning community, lest we become much more closed off like some other
+scientific fields.
+
+So, let me spin these four reasons into a more positive light:
 
 **Regarding vastly overestimating the time and attention to detail required** –
 porting models like this is pretty much the only way in machine learning to
@@ -83,10 +86,31 @@ working on a branch with good testing. So just trust your gut.
 **Regarding turbulent times** – okay, there isn't really a positive here. Moving
 house really sucks.
 
-### What's the Point?
+### The Main Point
 
 So, I didn't intend originally for this to be a journey of self-reflection. The
 actual main point was to offer some guidance on how to port models between
 frameworks in Huggingface transformers. There are a lot of existing docs about
 adding totally new models – even dedicated helper tools in the repo – but not
-much about converting between frameworks. So without further ado..
+much about converting between frameworks. So without further ado, here is Alex's
+little guide to porting models between frameworks.
+
+This isn't really the order in which I did things, and certain pieces of advice
+are born out me not doing them the first time, and wasting a bunch of time. This
+is the order I would go about doing it if I were to do it again, knowing what I
+know.
+
+1. Begin first by obviously picking a model to port. These will be models that have a `modeling_<name>.py` file but not a `modeling_flax_<name>.py`. We need to fully understand what the model architecture actually does, so map out the components of the model and details about them:
+    - How are the model input embeddings handled? Not just the embeddings for tokens, but also for positions, token types, and such. Is there any post-processing applied to the embeddings, such as normalisation?
+    - How about the output layer? How are the final logits calculated? Are the layers tied to the input embeddings?
+    - Looking at the model backbone, what's the structure of each layer? What kind of feedforward layers are they using? What type of attention layer? Any special features of the attention layer? What are the inputs to the attention layer? Where are the normalisation layers and how are the residuals connected? Are the layers arranged purely sequentially or are some in parallel?
+    - Basically, obtain a good understanding of all the key components and edge cases in the model. 
+2. Given the information about the model, check other Flax implementations in Huggingface transformers. Are there any others that have similar or the same components? For example, I based my Llama implementation heavily off GPT-Neo, which meant a lot of the boilerplate and structure could be copied directly.
+    - If there isn't a model that fits perfectly, we can at least reuse components. In any case, whenever you copy model components without changing them (aside from the name) ensure you prepend the line `# Copied from ...` to the code. This keeps these components in sync with one another.
+3. We are now ready to begin implementing the new model. Begin from the lowest level components (`FeedForward`, `Embedding`, `Attention`, and any other smaller components) at first.
+    - Create small tests for each layer in separate files as you go. They won't make their way into the final release, but they are invaluable for development. Test that the same inputs produce the same results between the reference PyTorch layers and the Flax layers.
+    - The tolerance for the tests should be quite strict at this level as errors here will accumulate a lot.
+4. Once the low-level components are numerically accurate, move onto higher-level components, such as the larger layers themselves, all the way up to the full model.
+    - Again, make tests for these components that test a small, but decent set of hyperparameters. Some issues only arise at certain scales or with certain settings on.
+5. Huggingface models usually have variants, such as `...ForCausalLM`, `...ForSentenceClassification` and the like. These also need to be implemented as appropriate for your particular model.
+    - There doesn't need to be perfect parity with the PyTorch version, but definitely need to be some variants. In particular, for generative transformer models it almost always makes sense to have the `ForCausalLM` variant.
