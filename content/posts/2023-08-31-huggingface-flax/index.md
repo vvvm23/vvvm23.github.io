@@ -34,12 +34,14 @@ contributing to such a mature codebase with its own opinions on what is correct,
 Finally, I've simply had a turbulent time recently with moving house and moving job. I still try to do personal projects in times of unrest but this one in particular was the first to be deprioritised. Take care of yourself first!
 
 This isn't a blog post to rant, complain, or generally be negative about the
-whole experience though. In fact, I feel it was quite positive and taught me a
-lot – just not much about Flax ironically enough. The maintainers at Huggingface
-are also very helpful and do God's work encouraging and nurturing budding
-open-source enthusiasts. It is vitally important to keep this open spirit in the
-machine learning community, lest we become much more closed off like some other
-scientific fields.
+whole experience though. So if you are thinking, "this guy is a bit dreary, time
+to go", don't turn away just yet.
+
+In fact, I feel it was quite positive and taught me a lot – just not much about
+Flax ironically enough. The maintainers at Huggingface are also very helpful and
+do God's work encouraging and nurturing budding open-source enthusiasts. It is
+vitally important to keep this open spirit in the machine learning community,
+lest we become much more closed off like some other scientific fields.
 
 So, let me spin these four reasons more positively:
 
@@ -53,6 +55,38 @@ the model? Maybe your code is right, but these are just bad hyperparameters? May
 
 Meanwhile, with porting models, you have a very clear right or wrong answer. You get a nice immediate feedback loop once you begin writing tests and you get a big fat *bzzzz* when your test fails. It sucks, but it really forces you to get every single thing right. One issue I fixed was that the `jax.numpy.rsqrt` and the `torch.rsqrt` differed by like `0.0001` in certain cases. Over a large enough model, these accumulate into quite a serious numerical difference. A completely boring and annoying issue, but I never would've encountered this had I not tried this project.
 
-**Regarding realising I don't like porting models that much** – this was also a positive in the end as it prompted me to think quite deeply about what I actually wanted to do in machine learning, or rather, what I was missing. I just don't get too excited about porting models, turns out I missed creating new models, researching things, and running training experiments. This had a knock on effect into me changing job so I can get back to this kind of work. This project alone wasn't really the deciding factor, but it did make me think.
+**Regarding realising I don't like porting models that much** – this was also a
+*positive in the end as it prompted me to think quite deeply about what I
+*actually wanted to do in machine learning, or rather, what I was missing. I
+*just don't get too excited about porting models, turns out I missed creating
+*new models, researching things, and running training experiments. This had a
+*knock on effect into me changing job so I can get back to this kind of work.
+*This project alone wasn't really the deciding factor, but it did make me think.
 
-**Regarding turbulent times** – okay, there isn't really a positive here
+I started getting more serious about machine learning after developing a few
+model implementations from research papers. Arguably, this is kinda porting
+models, but in most cases these models were either entirely unfamiliar to me (in
+which I would learn something) or had no existing code. In the latter case, this
+provided genuine utility to the community as a reference codebase. Contrast with
+straight porting between frameworks, where we don't really get much new
+capability except being able to run with a different backend. The actual
+"AI-part" is the same.
+
+**Regarding navigating mature and unfamiliar codebases** – I touched on this a
+little bit already, but it taught me that when contributing to a large codebase
+that has established styles and conventions, I am suspectible to overthinking my
+own contributions. However, this wastes a lot of time, so going forward I'll try
+to push onwards and _somewhat_ ignore the rest of the library. Easier to ask for
+forgiveness than for permission, and not a whole lot can go wrong when you are
+working on a branch with good testing. So just trust your gut.
+
+**Regarding turbulent times** – okay, there isn't really a positive here. Moving
+house really sucks.
+
+### What's the Point?
+
+So, I didn't intend originally for this to be a journey of self-reflection. The
+actual main point was to offer some guidance on how to port models between
+frameworks in Huggingface transformers. There are a lot of existing docs about
+adding totally new models – even dedicated helper tools in the repo – but not
+much about converting between frameworks. So without further ado..
