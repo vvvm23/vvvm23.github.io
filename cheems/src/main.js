@@ -1,4 +1,6 @@
-import { GLTFLoader } from './GLTFLoader.js'
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
 class Cheem {
   constructor(scene) {
     this.scene = scene;
@@ -34,13 +36,19 @@ async function main() {
     music.setBuffer(buffer);
     music.setLoop(true);
     music.setVolume(0.2);
-    music.play();
+    // music.play();
   });
+
+  function play() {
+    music.play()
+  }
+
+  document.body.addEventListener('click', play, true);
 
   const amb_light = new THREE.AmbientLight(0x404040);
   scene.add(amb_light);
 
-  const loader = new THREE.GLTFLoader();
+  const loader = new GLTFLoader();
   let cheems = await loader.loadAsync('resources/cheems/scene.gltf', 
     function ( gltf ) {
       return gltf;
@@ -50,7 +58,7 @@ async function main() {
     }
   );
 
-  cheems_scale = 0.05;
+  const cheems_scale = 0.05;
   cheems.scene.scale.set(cheems_scale, cheems_scale, cheems_scale);
 
   const box = new THREE.Box3().setFromObject(cheems.scene);
@@ -62,7 +70,7 @@ async function main() {
   pivot.add(cheems.scene);
 
   let pivots = [new Cheem(pivot)];
-  for (var i = 1; i < 500; i++) {
+  for (var i = 1; i < 200; i++) {
     const rand_pos = Array.from({length: 3}, () => Math.random() * 40.0 - 20.0);
     const rand_rot = Array.from({length: 3}, () => Math.random() * 2 * Math.PI);
     const rand_scale = Math.random() * 2.0;
@@ -74,7 +82,7 @@ async function main() {
 
     if (i % 10 == 0) {
       const rand_col = Math.floor(Math.random()*16777215)
-      const point_light = new THREE.PointLight(rand_col, 1, 10);
+      const point_light = new THREE.PointLight(rand_col, 10, 20);
       point_light.position.set(...rand_pos);
       scene.add(point_light)
     }
@@ -86,7 +94,7 @@ async function main() {
 
   const animate = function () {
     requestAnimationFrame( animate );
-    dt = clock.getDelta();
+    const dt = clock.getDelta();
 
     pivots.forEach(function (pivot) {
       pivot.update_rotation(dt);
