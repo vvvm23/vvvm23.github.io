@@ -70,7 +70,7 @@ async function main() {
   pivot.add(cheems.scene);
 
   let pivots = [new Cheem(pivot)];
-  for (var i = 1; i < 200; i++) {
+  for (var i = 1; i < 100; i++) {
     const rand_pos = Array.from({length: 3}, () => Math.random() * 40.0 - 20.0);
     const rand_rot = Array.from({length: 3}, () => Math.random() * 2 * Math.PI);
     const rand_scale = Math.random() * 2.0;
