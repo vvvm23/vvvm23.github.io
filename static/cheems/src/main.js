@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as HSL from 'hsl';
 
 class Cheem {
   constructor(scene) {
@@ -48,6 +49,10 @@ async function main() {
   const amb_light = new THREE.AmbientLight(0x404040);
   scene.add(amb_light);
 
+  const dir_light = new THREE.DirectionalLight(0x404040, 5)
+  dir_light.position.set(100, -100, 100)
+  scene.add(dir_light)
+
   const loader = new GLTFLoader();
   let cheems = await loader.loadAsync('resources/cheems/scene.gltf', 
     function ( gltf ) {
@@ -80,11 +85,15 @@ async function main() {
     cloned_pivot.scale.set(rand_scale, rand_scale, rand_scale);
     scene.add(cloned_pivot);
 
-    if (i % 10 == 0) {
-      const rand_col = Math.floor(Math.random()*16777215)
-      const point_light = new THREE.PointLight(rand_col, 10, 20);
-      point_light.position.set(...rand_pos);
-      scene.add(point_light)
+    if (i % 5 == 0) {
+      const rand_hue = Math.random();
+      const rand_col = HSL.hslToRgb(rand_hue, 1.0, 0.5);
+      const rand_col_int = rand_col[0] * 0x010000 + rand_col[1] * 0x000100 + rand_col[2];
+      const point_light = new THREE.PointLight(rand_col_int, 100, 15);
+
+      const light_pos = [rand_pos[0], rand_pos[1] + 1.0, rand_pos[2] + 1.0];
+      point_light.position.set(...light_pos);
+      cloned_pivot.add(point_light)
     }
     pivots.push(new Cheem(cloned_pivot));
   }
@@ -100,9 +109,9 @@ async function main() {
       pivot.update_rotation(dt);
     })
 
-    camera.rotation.z += dt * 0.1;
-    camera.rotation.y -= dt * 0.1;
-    camera.rotation.x -= dt * 0.1;
+    camera.rotation.z += dt * rotate_speed;
+    camera.rotation.y -= dt * rotate_speed;
+    camera.rotation.x -= dt * rotate_speed;
 
     renderer.render( scene, camera );
   };
