@@ -1,6 +1,7 @@
 ---
 title: "Other Stuff"
 draft: false
+toc: false
 ---
 
 A collection of other stuff..
