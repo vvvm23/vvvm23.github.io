@@ -23,6 +23,9 @@ languages:
         - name: Posts
           url: posts
           weight: 5
+        - name: Misc
+          url: misc
+          weight: 10
         - name: CV
           url: cv.pdf
           weight: 99
@@ -41,7 +44,7 @@ params:
     Content: >
       Greetings! I am Alex, and you are reading my website ～ 
 
-      - I am an artificial intelligence engineer and general computer tinkerer.
+      - I am an artificial intelligence engineer / researcher and general computer tinkerer.
 
       - I'll be documenting my learning notes here, as well as anything else that catches my fancy.
 
