@@ -1,5 +1,5 @@
 ---
-title: "2023 12 02 Mac Post"
+title: "Making Mac Bearable"
 date: 2023-12-02T12:16:28Z
 draft: false
 ---
