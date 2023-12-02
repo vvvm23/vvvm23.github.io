@@ -30,7 +30,7 @@ Perhaps you can't relate on this example, but here are a few others:
 
 The second point is more relatable. We already have an endless bombardment of distraction from our phones, scientifically designed to own your attention, (I don't think I need to elaborate here) so I try hard to make my computers a safe haven. So when my Mac starts telling me about the weather, world news, stock market, the time in Cupertino, or some random notification, I want to gouge out my own eyes.
 
-![](Pasted image 20231202112125.png)
+![](20231202112125.png)
 > me when
 
 Notifications from things I care about are worse as they are guaranteed to pull me out of whatever I am doing. These are easy to disable though, however simply *having the capability* to check things like Twitter, messenger, and Youtube is enough to sometimes pull me away from work - essentially checking to *see what I get* in much the same way you would pull from a slot machine.
@@ -42,7 +42,7 @@ My biggest issue with Mac out of the box is its window management. By default, t
 
 Some of these can be enabled, some by checkbox and others by literally *typing in long strings to setup keyboard binds* (you have to type the full name of the command, like "Move Window to Left Side of Screen" when creating a keybind - talk about ergonomic). I find there are loads of technicalities to get something working without installing additional software, but it is pretty terrible for a modern OS to not have a lot of these by default.
 
-![](Pasted image 20231202113227.png)
+![](20231202113227.png)
 > in this screenshot, words of deranged and lost.
 
 > MacOS not having a lot of sensible defaults and apps is a common theme in this blog. For example, it doesn't even have per-app volume control, something I find insane to not have in the year of our lord 2023.
@@ -220,7 +220,7 @@ Most of these are not MacOS specific and could be applied to terminals on any op
 First up is the much-loved [brew](https://brew.sh/) which I am forever surprised is not just packaged with MacOS nowadays. This is essentially a package manager that you can use to install pretty much every program you can think of from the terminal.
 
 This is to solve the issue of either going to the app store to get applications (which requires billing information even for free apps) or sourcing applications from the internet *and literally dragging the icon to the applications folder to install.* Could not be closer to baby's first computer if you tried.
-![](Pasted image 20231127144703.png)
+![](20231127144703.png)
 
 Another classic that most developers know is [iTerm2](https://iterm2.com/), basically a must have for anyone using the terminal on MacOS. You can see the full list of features [here](https://iterm2.com/features.html) with my favourite being Copy Mode and inline images.
 
