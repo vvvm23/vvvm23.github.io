@@ -136,7 +136,7 @@ you are comfortable working as root on Linux, and understand the risks of a
 truly unrestricted root user, then feel free to disable too.
 
 ![GIF showing tiling window management on a bunch of terminals.](1.gif)
-> Example showing tiling window management with a bunch fo terminals. 
+> Example showing tiling window management with a bunch of terminals. 
 
 I won't repeat how to install it as [the
 document](https://github.com/koekeishiya/yabai/wiki#quickstart-guide) is pretty
