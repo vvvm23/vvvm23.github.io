@@ -43,6 +43,7 @@ params:
   ShowShareButtons: false
   ShowReadingTime: false
   ShowToc: true
+  hideMeta: true
 
   homeInfoParams:
     Title: "🤔 Welcome to Alex's Website!"
