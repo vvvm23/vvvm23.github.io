@@ -167,6 +167,8 @@ Most of the training loop is implemented in JAX, with the exception of the datas
 
 > Though I understand why JAX doesn't reimplement datasets as good implementations already exists in PyTorch and Tensorflow, I still dislike "polluting" my environment with another large library just for a single feature.
 
+`TODO: mention how the MIDI was AI transcribed, so certain files are pretty bad`
+
 The dataset I am using is the [GiantMIDI](https://github.com/bytedance/GiantMIDI-Piano) dataset from ByteDance research. This is essentially a massive collection of classical music performances of, to be honest, varying quality. I won't enumerate the full training code, but you can find it [here](https://github.com/vvvm23/tchaikovsky).
 
 One thing to highlight is that thanks to JAX's excellent device-agnostic design and new distributed Array API, I was able to develop this entirely on a single-GPU machine, then add only a few lines of code to convert it to work with Kaggle's free 8xTPU VM.
