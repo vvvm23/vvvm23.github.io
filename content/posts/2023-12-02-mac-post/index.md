@@ -2,7 +2,6 @@
 title: "Making Mac Bearable"
 date: 2023-12-02T12:16:28Z
 draft: false
-hideSummary: true
 ---
 
 ### Introduction
