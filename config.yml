@@ -4,6 +4,11 @@ title: "Alex McKinney"
 theme: "PaperMod"
 paginate: 5
 
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+
 enableRobotsTXT: true
 enableEmoji: true
 

@@ -6,6 +6,8 @@ math: true
 unsafe: true
 ---
 
+![](img/cover.jpg)
+
 I've been learning about machine learning on-and-off since about 2017. I first became interested in the field after stumbling across [Andrej Karpathy's classic blog, The Unreasonable Effectiveness of Recurrent Neural Networks](http://karpathy.github.io/2015/05/21/rnn-effectiveness/). How exactly I came across it is lost to time, however I remember being struck with how impressive (at the time) the outputs were – doubly so as my programming experience then was limited. The idea of programs capable of *generating things* was eye-opening.
 
 This led me down the deep learning rabbit hole, spending a lot of time trying to understand what the hell these things were. I didn't have a computer-literate mentor, and less of an accessible hobbyist community back then, so this was a solo endeavour. I distinctly remember training my first network, literally deep in the snowy Scottish Highlands, written from scratch in *Visual Basic.NET*, to emulate an XOR gate. With that, the die was cast and I was hooked.
@@ -48,7 +50,6 @@ One format for specifically representing music is called MIDI (Musical Instrumen
 Simplifying things, MIDI is simply a set of instructions for how digital instruments should be played. A MIDI file is then simply a list of instructions from this set. It cannot be played and listened to directly, but can be interpreted and rendered as audio by providing it with a *sound-font* containing the sound of each instrument we want to use at different pitches and velocities (volumes).
 
 Instructions include, but are not limited to:
-`TODO: fact check this`
 - Note On and Note Off events.
 - Sustain on and off
 - Pitch bends
@@ -205,79 +206,120 @@ The results are naturally less consistent. Anyone who has sampled from an unprom
 
 Below, I show twelve unconditional samples, made up of four random seeds and three sampling:
 
+<table>
+<tr>
+<th>
 <figure>
   <figcaption>Seed 0 - Temperature 0.7</figcaption>
   <audio controls src="./audio/uncond-seed0-t7.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
 
+<th>
 <figure>
   <figcaption>Seed 0 - Temperature 0.8</figcaption>
   <audio controls src="./audio/uncond-seed0-t8.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
 
+<th>
 <figure>
   <figcaption>Seed 0 - Temperature 0.9</figcaption>
   <audio controls src="./audio/uncond-seed0-t9.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
+</tr>
 
+<tr>
+<th>
 <figure>
   <figcaption>Seed 11 - Temperature 0.7</figcaption>
   <audio controls src="./audio/uncond-seed11-t7.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
 
+<th>
 <figure>
   <figcaption>Seed 11 - Temperature 0.8</figcaption>
   <audio controls src="./audio/uncond-seed11-t8.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
 
+<th>
 <figure>
   <figcaption>Seed 11 - Temperature 0.9</figcaption>
   <audio controls src="./audio/uncond-seed11-t9.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
+</tr>
 
+<tr>
+<th>
 <figure>
   <figcaption>Seed 255 - Temperature 0.7</figcaption>
   <audio controls src="./audio/uncond-seed255-t7.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
 
+<th>
 <figure>
   <figcaption>Seed 255 - Temperature 0.8</figcaption>
   <audio controls src="./audio/uncond-seed255-t8.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
 
+<th>
 <figure>
   <figcaption>Seed 255 - Temperature 0.9</figcaption>
   <audio controls src="./audio/uncond-seed255-t9.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
+</tr>
 
+
+<tr>
+<th>
 <figure>
   <figcaption>Seed 777 - Temperature 0.7</figcaption>
   <audio controls src="./audio/uncond-seed777-t7.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
 
+<th>
 <figure>
   <figcaption>Seed 777 - Temperature 0.8</figcaption>
   <audio controls src="./audio/uncond-seed777-t8.mid.ogg.mp3" type="audio/mp3">
   </audio>
 </figure>
+</th>
 
+<th>
 <figure>
   <figcaption>Seed 777 - Temperature 0.9</figcaption>
   <audio controls src="./audio/uncond-seed777-t9.mid.ogg.mp3">
   </audio>
 </figure>
-</p>
+</th>
+</tr>
 
+</table>
 
 
 A midpoint between full unconditional sampling and prompting from files is to prompt from simple structures, such as simple chord progressions, scales, and simple motifs. This allows for a limited degree of controllable, creative generation. I didn't end up exploring this too deeply, but it is an interesting direction to expand upon.
+
+### Conclusion
+- Conclusion
+	- A lot of directions that this could be continued from, such a bigger model, more advanced model (new attention types, rotary embeddings, etc), more data, and such.
+	- One interesting idea would be training a model actually on the full MIDI instruction set, then letting it lose on a huge dataset to build a sort of "MIDI foundation model"
+	- However, I just want this to remain a small project so I can move onto other things, so I won't be pursuing these directions.
+	- But I hope I have inspired people to perhaps try their hand at creating their own MIDI generating models, perhaps on their own datasets. It is a pretty approachable learning task if you only have limited compute (this was all trained on free compute.)
