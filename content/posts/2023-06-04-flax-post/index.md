@@ -1210,8 +1210,11 @@ Out: {'bias': array([0., 0.], dtype=float32),
 ``` 
 Which returns the raw PyTree. If you are using a custom dataclass with objects
 that can't be serialised (such as a Flax train state where `apply_fn` and `tx`
-can't be serialised) you can pass an example PyTree to `item` in the `restore`
-call, to let Orbax know the structure you want.
+can't be serialised) you can pass a dummy PyTree of the same structure as the
+saved one using the `item` argument in the `restore` call, to let Orbax know
+the structure you want.
+
+> You can read more about restoring custom dataclasses [here in the Orbax documentation](https://flax.readthedocs.io/en/latest/guides/training_techniques/use_checkpointing.html#restore-with-custom-dataclasses)
 
 Manually saving checkpoints like this is a bit old-fashioned. Orbax has a bunch
 of automatic versioning and scheduling features built in, such as automatic
