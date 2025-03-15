@@ -26,7 +26,7 @@ wrote more about this AI approach in [this blog post](posts/2023-06-26-sentence-
 
 I recently rekindled a childhood enjoyment for photography by purchasing a Sony
 mirrorless APS-C camera. I'm still learning, but you can find my best examples 
-[here](https://www.flickr.com/people/afmck/)
+[here.](https://www.flickr.com/people/afmck/)
 
 
 ## Music
