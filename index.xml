@@ -1,11 +1,79 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Alex McKinney</title><link>https://afmck.in/</link><description>Recent content on Alex McKinney</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 21 Dec 2023 15:26:04 +0000</lastBuildDate><atom:link href="https://afmck.in/index.xml" rel="self" type="application/rss+xml"/><item><title>TchAIkovsky - Piano MIDI Generation with Transformers</title><link>https://afmck.in/posts/2023-12-22-tchaikovsky/</link><pubDate>Thu, 21 Dec 2023 15:26:04 +0000</pubDate><guid>https://afmck.in/posts/2023-12-22-tchaikovsky/</guid><description>I&amp;rsquo;ve been learning about machine learning on-and-off since about 2017. I first became interested in the field after stumbling across Andrej Karpathy&amp;rsquo;s classic blog, The Unreasonable Effectiveness of Recurrent Neural Networks. How exactly I came across it is lost to time, however I remember being struck with how impressive (at the time) the outputs were. My programming experience then was limited, so seeing programs capable of generating things – learning from data alone – was eye-opening.</description></item><item><title>Making Mac Bearable</title><link>https://afmck.in/posts/2023-12-02-mac-post/</link><pubDate>Sat, 02 Dec 2023 12:16:28 +0000</pubDate><guid>https://afmck.in/posts/2023-12-02-mac-post/</guid><description>Introduction Ilkley Moor
-A few weeks ago I was made redundant along with a decent chunk of the company, after just under two months being employed there. Thanks to some odd technicalities, I was able to buy back my work laptop for a very low price. This was an M2 Air which ordinarily I would never use unless I had to, mostly due to the locked down nature of Mac that makes it difficult to customise exactly to my tastes, and also a dislike of the software it ships with.</description></item><item><title>Sentence Mining with OpenAI's Whisper</title><link>https://afmck.in/posts/2023-06-26-sentence-mining/</link><pubDate>Tue, 04 Jul 2023 07:07:39 +0100</pubDate><guid>https://afmck.in/posts/2023-06-26-sentence-mining/</guid><description>Online, I tend to market myself as an AI / computery guy, creating and following content related to these areas. However, I have other interests and passions to tinker with – unfortunately too many to actually dedicate lots of time to all of them, with the exception of one. The One is language learning, specifically learning Chinese, which I have been generally consistent with.
-It has been a long road, starting in late 2018 but with large breaks and misguided routes taken along the way.</description></item><item><title>Easy JAX training loops with Flax and Optax</title><link>https://afmck.in/posts/2023-06-04-flax-post/</link><pubDate>Sun, 04 Jun 2023 12:00:00 +0100</pubDate><guid>https://afmck.in/posts/2023-06-04-flax-post/</guid><description>In my previous blog post, I discussed JAX – a framework for high performance numerical computing and machine learning — in an atypical manner. I didn&amp;rsquo;t create a single training loop, and only showed a couple patterns that looked vaguely machine learning-like. If you haven&amp;rsquo;t read that blog post yet, you can read it here.
-This approach was deliberate as I felt that JAX — although designed for machine learning research — is more general-purpose than that.</description></item><item><title>On Learning JAX – A Framework for High Performance Machine Learning</title><link>https://afmck.in/posts/2023-05-22-jax-post/</link><pubDate>Mon, 22 May 2023 08:41:00 +0100</pubDate><guid>https://afmck.in/posts/2023-05-22-jax-post/</guid><description>Recently, I took part in the Huggingface x Google Cloud community sprint which (despite being named a ControlNet sprint) had a very broad scope: involve diffusion models, use JAX, and use TPUs provided for free by Google Cloud. A lot of cool projects came out of it in a relatively short span of time.
-Our project was quite ambitious: to take my master&amp;rsquo;s dissertation work on combining step-unrolled denoising autoencoders (loosely adjacent to discrete diffusion models) with VQ-GAN, porting it all to JAX, then adding support for text-conditioned generation.</description></item><item><title>A Brief Overview of Parallelism Strategies in Deep Learning</title><link>https://afmck.in/posts/2023-02-26-parallelism/</link><pubDate>Sun, 26 Feb 2023 09:00:00 +0000</pubDate><guid>https://afmck.in/posts/2023-02-26-parallelism/</guid><description>Royal York Crescent, Bristol.
-It has been nearly half a year since I started my first real job as a fully-fledged graduate. This has taken the form of being an AI Engineer at Graphcore, a Bristol-based AI accelerator startup. In quite a short amount of time, I have learned a great great deal and I am grateful for the opportunity and the patience of my colleagues – the latter of which is particularly needed when tutoring the average, fresh compsci graduate.</description></item><item><title>A New Site</title><link>https://afmck.in/posts/2022-05-29-new-site/</link><pubDate>Sun, 29 May 2022 09:57:52 +0100</pubDate><guid>https://afmck.in/posts/2022-05-29-new-site/</guid><description>I&amp;rsquo;ve had a hankering for a while to completely redo my personal website. There are a number of reasons for this.
-For one, the old site was generated using my own static site generator sss. This was more of a project to learn Rust, rather to build a good static site generator. As such, it has not stood the test of time. Most notably, adding new features is truly awful and the HTML templates are part of the source code, rather than being separate and thus easily customisable.</description></item><item><title>About Me</title><link>https://afmck.in/about/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://afmck.in/about/</guid><description>A picture of my hand.
-Greetings, my name is Alex! I work with AI (primarily deep generative modeling, unsupervised representation learning, multimodal models), tinker with Linux, and explore anything else I fancy. In a past life I was a master&amp;rsquo;s student at Durham University, studying computer science and teaching introductory Python.
-Outside of the computer-sphere, I enjoy productively procrastinating by playing piano and flute. I also have an interest in (slowly) learning languages (對不起我只會說一點中文。。)</description></item><item><title>Other Stuff</title><link>https://afmck.in/misc/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://afmck.in/misc/</guid><description>A collection of other stuff..
-Languages I enjoy learning Mandarin Chinese very slowly. My reading and typing is much stronger than my listening and speaking, but working on addressing that. I&amp;rsquo;ve been studying on and off for about five years, but wouldn&amp;rsquo;t say I got serious until about two years ago. I started with learning simplified characters but now I am focusing more and more on learning traditional characters.
-I use Whisper to help me learn, through a process called sentence mining.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Alex McKinney</title><link>https://afmck.in/</link><description>Recent content on Alex McKinney</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 21 Dec 2023 15:26:04 +0000</lastBuildDate><atom:link href="https://afmck.in/index.xml" rel="self" type="application/rss+xml"/><item><title>TchAIkovsky - Piano MIDI Generation with Transformers</title><link>https://afmck.in/posts/2023-12-22-tchaikovsky/</link><pubDate>Thu, 21 Dec 2023 15:26:04 +0000</pubDate><guid>https://afmck.in/posts/2023-12-22-tchaikovsky/</guid><description>&lt;p>&lt;img loading="lazy" src="img/cover.jpg" alt="Ilkley Moor Winter Frost." />
+&lt;/p>
+&lt;p>I&amp;rsquo;ve been learning about machine learning on-and-off since about 2017. I first became interested in the field after stumbling across &lt;a href="http://karpathy.github.io/2015/05/21/rnn-effectiveness/">Andrej Karpathy&amp;rsquo;s classic blog, The Unreasonable Effectiveness of Recurrent Neural Networks&lt;/a>. How exactly I came across it is lost to time, however I remember being struck with how impressive (at the time) the outputs were. My programming experience then was limited, so seeing programs capable of &lt;em>generating things&lt;/em> – learning from data alone – was eye-opening.&lt;/p></description></item><item><title>Making Mac Bearable</title><link>https://afmck.in/posts/2023-12-02-mac-post/</link><pubDate>Sat, 02 Dec 2023 12:16:28 +0000</pubDate><guid>https://afmck.in/posts/2023-12-02-mac-post/</guid><description>&lt;h3 id="introduction">Introduction&lt;/h3>
+&lt;p>&lt;img loading="lazy" src="DSC07372.jpg" alt="Ilkley Moor" />
+&lt;/p>
+&lt;blockquote>
+&lt;p>Ilkley Moor&lt;/p>&lt;/blockquote>
+&lt;p>A few weeks ago I was made redundant along with a decent chunk of the company,
+after just under two months being employed there. Thanks to some odd
+technicalities, I was able to buy back my work laptop for a very low price. This
+was an M2 Air which ordinarily I would never use unless I had to, mostly due to
+the locked down nature of Mac that makes it difficult to customise exactly to my
+tastes, and also a dislike of the software it ships with.&lt;/p></description></item><item><title>Sentence Mining with OpenAI's Whisper</title><link>https://afmck.in/posts/2023-06-26-sentence-mining/</link><pubDate>Tue, 04 Jul 2023 07:07:39 +0100</pubDate><guid>https://afmck.in/posts/2023-06-26-sentence-mining/</guid><description>&lt;p>Online, I tend to market myself as an AI / computery guy, creating and following content related to these areas. However, I have other interests and passions to tinker with – unfortunately too many to actually dedicate lots of time to all of them, with the exception of one. The One is language learning, specifically learning Chinese, which I have been generally consistent with.&lt;/p>
+&lt;p>It has been a long road, starting in late 2018 but with large breaks and misguided routes taken along the way. Ultimately, in the past couple years I&amp;rsquo;ve been very consistent with vocabulary and reading practice. I&amp;rsquo;ve cracked the formula for learning in this regard, at least for me. By no means am I an expert, but on my recent trip to Taiwan I managed well with reading – better than expected. Progressing further is a matter of time rather than trying to hack my brain.&lt;/p></description></item><item><title>Easy JAX training loops with Flax and Optax</title><link>https://afmck.in/posts/2023-06-04-flax-post/</link><pubDate>Sun, 04 Jun 2023 12:00:00 +0100</pubDate><guid>https://afmck.in/posts/2023-06-04-flax-post/</guid><description>&lt;p>In my previous blog post, I discussed JAX – a framework for high performance
+numerical computing and machine learning — in an atypical manner. &lt;strong>I didn&amp;rsquo;t
+create a single training loop&lt;/strong>, and only showed a couple patterns that looked
+vaguely machine learning-like. If you haven&amp;rsquo;t read that blog post yet, you can
+read it &lt;a href="https://afmck.in/posts/2023-05-22-jax-post/">here&lt;/a>.&lt;/p>
+&lt;p>This approach was deliberate as I felt that JAX — although designed for machine
+learning research — is more general-purpose than that. The steps to use it are
+to define what you want to happen, wrap it in within &lt;code>jax.jit&lt;/code>, let JAX trace
+out your function into an intermediate graph representation, which is then
+passed to XLA where it will be compiled and optimised. The result is a single,
+heavily-optimised, binary blob, ready and waiting to receive your data. This
+approach is a natural fit for many machine learning applications, as well as
+other scientific computing tasks. Therefore, targeting machine learning only
+didn&amp;rsquo;t make sense. It is also ground that has already been extensively covered — I wanted to do a different take on introductory JAX.&lt;/p></description></item><item><title>On Learning JAX – A Framework for High Performance Machine Learning</title><link>https://afmck.in/posts/2023-05-22-jax-post/</link><pubDate>Mon, 22 May 2023 08:41:00 +0100</pubDate><guid>https://afmck.in/posts/2023-05-22-jax-post/</guid><description>&lt;p>Recently, I took part in the &lt;a href="https://github.com/huggingface/community-events/tree/main/jax-controlnet-sprint">Huggingface x Google Cloud community
+sprint&lt;/a>
+which (despite being named a ControlNet sprint) had a very broad scope: involve
+diffusion models, use &lt;a href="https://github.com/google/jax">JAX&lt;/a>, and use TPUs
+provided for free by Google Cloud. A lot of cool projects came out of it in a
+relatively short span of time.&lt;/p>
+&lt;p>Our project was quite ambitious: to take my master&amp;rsquo;s dissertation work on
+combining &lt;a href="https://arxiv.org/abs/2112.06749">step-unrolled denoising
+autoencoders&lt;/a> (loosely adjacent to discrete
+diffusion models) with VQ-GAN, porting it all to JAX, then adding support for
+text-conditioned generation. With this new model, we would train a new
+text-to-image model from scratch, à la
+&lt;a href="https://github.com/borisdayma/dalle-mini">Dalle-mini&lt;/a>.&lt;/p></description></item><item><title>A Brief Overview of Parallelism Strategies in Deep Learning</title><link>https://afmck.in/posts/2023-02-26-parallelism/</link><pubDate>Sun, 26 Feb 2023 09:00:00 +0000</pubDate><guid>https://afmck.in/posts/2023-02-26-parallelism/</guid><description>&lt;!-- See how this looks online -->
+&lt;p>&lt;img loading="lazy" src="img/header.jpg" alt="" />
+&lt;/p>
+&lt;blockquote>
+&lt;p>&lt;em>Royal York Crescent, Bristol.&lt;/em>&lt;/p>&lt;/blockquote>
+&lt;p>It has been nearly half a year since I started my first real job as a
+fully-fledged graduate. This has taken the form of being an AI Engineer at
+Graphcore, a Bristol-based AI accelerator startup. In quite a short amount of time, I
+have learned a great great deal and I am grateful for the opportunity and the
+patience of my colleagues – the latter of which is particularly needed when
+tutoring the average, fresh compsci graduate.&lt;/p></description></item><item><title>A New Site</title><link>https://afmck.in/posts/2022-05-29-new-site/</link><pubDate>Sun, 29 May 2022 09:57:52 +0100</pubDate><guid>https://afmck.in/posts/2022-05-29-new-site/</guid><description>&lt;p>I&amp;rsquo;ve had a hankering for a while to completely redo my personal website. There
+are a number of reasons for this.&lt;/p>
+&lt;p>For one, the old site was generated using my own static site generator
+&lt;a href="https://github.com/vvvm23/sss">sss&lt;/a>. This was more of a project to learn Rust,
+rather to build a good static site generator. As such, it has not stood the
+test of time. Most notably, adding new features is truly awful and the HTML
+templates are part of the source code, rather than being separate and thus
+easily customisable. I&amp;rsquo;m not interested enough in web development to invest
+a lot of time in refactoring the generator. Basically, a serious case of code
+smell.&lt;/p></description></item><item><title>About Me</title><link>https://afmck.in/about/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://afmck.in/about/</guid><description>&lt;p>&lt;img loading="lazy" src="images/banner.jpeg" alt="My hand" />
+&lt;/p>
+&lt;blockquote>
+&lt;p>A picture of my hand.&lt;/p>&lt;/blockquote>
+&lt;p>Greetings, my name is Alex! I work with AI (primarily deep generative modeling,
+unsupervised representation learning, multimodal models), tinker with Linux,
+and explore anything else I fancy. In a past life I was a master&amp;rsquo;s student at
+Durham University, studying computer science and teaching introductory Python.&lt;/p>
+&lt;p>Outside of the computer-sphere, I enjoy productively procrastinating by playing
+piano and flute. I also have an interest in (slowly) learning languages
+(對不起我只會說一點中文。。)&lt;/p></description></item><item><title>Other Stuff</title><link>https://afmck.in/misc/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://afmck.in/misc/</guid><description>&lt;p>A collection of other stuff..&lt;/p>
+&lt;h2 id="languages">Languages&lt;/h2>
+&lt;p>I enjoy learning Mandarin Chinese very slowly. My reading and typing is much
+stronger than my listening and speaking, but working on addressing that. I&amp;rsquo;ve
+been studying on and off for about five years, but wouldn&amp;rsquo;t say I got serious
+until about two years ago. I started with learning simplified characters but
+now I am focusing more and more on learning traditional characters.&lt;/p>
+&lt;p>I use Whisper to help me learn, through a process called sentence mining. You
+can find my current, crappy code for this
+&lt;a href="https://github.com/vvvm23/zh-yt">here&lt;/a> and learn more about sentence mining
+through &lt;a href="https://youtu.be/QBcQJESGQvc?si=FE6jTnaAnoALiWUQ">this great video&lt;/a>. I
+wrote more about this AI approach in &lt;a href="https://afmck.in/posts/2023-06-26-sentence-mining/">this blog post&lt;/a>&lt;/p></description></item></channel></rss>
